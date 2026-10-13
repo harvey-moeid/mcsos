@@ -69,9 +69,11 @@ MCP memakai consent per klien, OAuth 2.1 dan PKCE melalui `@cloudflare/workers-o
 
 ## Cloudflare deployment
 
-Belum ada resource produksi yang dibuat atau deployment yang dilakukan oleh pekerjaan ini.
+**Status 13 Oktober 2026:** Worker `social-mcp`, bucket R2 `social-mcp-data`, namespace KV `SOCIAL_MCP_OAUTH_KV` dan `SOCIAL_MCP_CACHE`, CORS dan aturan lifecycle telah dibuat pada akun Cloudflare `harvey`. Cloudflare Builds terhubung ke branch `main` GitHub. `PUBLIC_ORIGIN` dan `OWNER_GITHUB_ID` telah disetel. Kredensial OAuth GitHub/Meta/TikTok dan S3 R2 tetap harus diberikan sebagai **Secrets**, bukan disimpan di git.
 
-1. Buat bucket dan KV, lalu salin ID KV hasil CLI ke config (ID nol adalah placeholder, bukan resource nyata).
+**Penting (kuota Cloudflare Free):** Akun ini sudah menggunakan semua 5 slot Cron Trigger. Karena deploy dengan dua Cron gagal (`10072`), konfigurasi sementara memakai `triggers.crons: []` tanpa menghapus Cron milik aplikasi lain. Dashboard/API tetap dapat dideploy, tetapi penerbitan terjadwal dan maintenance otomatis **belum berjalan**. Untuk mengaktifkannya sesuai arsitektur semula, sediakan kuota Cron (misalnya lewat peningkatan plan), lalu pulihkan `* * * * *` dan `17 0 * * *` dan redeploy.
+
+1. Resource produksi sudah dibuat dan ID KV yang sebenarnya sudah tercantum pada `wrangler.jsonc`. Langkah CLI berikut untuk provisioning ulang **tidak perlu dijalankan**:
 
 ```sh
 npx wrangler r2 bucket create social-mcp-data
@@ -79,7 +81,7 @@ npx wrangler kv namespace create OAUTH_KV
 npx wrangler kv namespace create CACHE
 ```
 
-2. Ganti `PUBLIC_ORIGIN` menjadi origin HTTPS custom domain pemilik; isi `OWNER_GITHUB_ID`. Tambahkan `routes` pada config, misalnya:
+2. Saat ini origin memakai `https://social-mcp.harveymoeid.workers.dev` dan ID pemilik sudah disetel. Jika menggunakan custom domain, ubah `PUBLIC_ORIGIN`, CORS R2, callback OAuth, dan rute Cloudflare secara konsisten, misalnya:
 
 ```json
 "routes": [{"pattern": "social.example.com", "custom_domain": true}]
@@ -107,7 +109,7 @@ npx wrangler r2 bucket lifecycle add social-mcp-data connect-state connect-state
 npx wrangler r2 bucket lifecycle add social-mcp-data pending-connect connect-pending/ --expire-days 1
 ```
 
-Cron memiliki pembersihan tambahan dengan pagination dan cursor tersimpan. Aturan lifecycle R2 diperlukan agar retensi tidak bergantung pada kecepatan sapuan harian. Eksekusi lifecycle adalah layanan Cloudflare, bukan janji penghapusan tepat pada detik batas 365 hari.
+Setelah Cron dapat diaktifkan kembali, Cron memiliki pembersihan tambahan dengan pagination dan cursor tersimpan. Aturan lifecycle R2 diperlukan agar retensi tidak bergantung pada kecepatan sapuan harian. Eksekusi lifecycle adalah layanan Cloudflare, bukan janji penghapusan tepat pada detik batas 365 hari.
 
 6. Validasi lalu deploy:
 
@@ -119,7 +121,7 @@ npx wrangler deploy --dry-run
 npx wrangler deploy
 ```
 
-Config memiliki Cron publisher setiap menit dan maintenance pukul 00:17 UTC (07:17 WIB). Publisher memproses maksimal 5 item/tahap per invocation; polling tertunda dipindahkan agar tidak menghambat item berikutnya. Maintenance menjadwalkan pekerjaan per akun, lalu Cron memproses maksimal 2 akun per menit agar refresh/snapshot tidak membuat burst API. Carousel dibuat dalam batch kecil dan menunggu container anak siap sebelum membuat parent. Budget CPU, operasi R2, KV OAuth, dan subrequest perlu diukur pada akun Cloudflare yang dipakai. Target free plan belum berarti biaya $0 terverifikasi. Pemeriksaan MP4 besar, crypto, dan banyak akun dapat membutuhkan paket Workers berbayar; tidak ada upgrade otomatis.
+Konfigurasi yang direncanakan memiliki Cron publisher setiap menit dan maintenance pukul 00:17 UTC (07:17 WIB), tetapi **keduanya dinonaktifkan sementara karena batas Cloudflare Free**. Publisher memproses maksimal 5 item/tahap per invocation; polling tertunda dipindahkan agar tidak menghambat item berikutnya. Maintenance menjadwalkan pekerjaan per akun, lalu Cron memproses maksimal 2 akun per menit agar refresh/snapshot tidak membuat burst API. Carousel dibuat dalam batch kecil dan menunggu container anak siap sebelum membuat parent. Budget CPU, operasi R2, KV OAuth, dan subrequest perlu diukur pada akun Cloudflare yang dipakai. Target free plan belum berarti biaya $0 terverifikasi. Pemeriksaan MP4 besar, crypto, dan banyak akun dapat membutuhkan paket Workers berbayar; tidak ada upgrade otomatis.
 
 ## Browser Use sebagai opsi tambahan
 
