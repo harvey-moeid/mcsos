@@ -1,6 +1,8 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "social-mcp",
+  "workers_dev": true,
+  "preview_urls": false,
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-10-13",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -27,7 +29,7 @@
     }
   ],
   "triggers": {
-    "crons": ["* * * * *", "17 0 * * *"]
+    "crons": []
   },
   "observability": {
     "enabled": true,
