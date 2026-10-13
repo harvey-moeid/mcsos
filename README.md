@@ -69,6 +69,8 @@ MCP memakai consent per klien, OAuth 2.1 dan PKCE melalui `@cloudflare/workers-o
 
 ## Cloudflare deployment
 
+**Domain produksi:** `https://sosial-mcp.muidsoft.com` (Worker `social-mcp`).
+
 **Status 13 Oktober 2026:** Worker `social-mcp`, bucket R2 `social-mcp-data`, namespace KV `SOCIAL_MCP_OAUTH_KV` dan `SOCIAL_MCP_CACHE`, CORS dan aturan lifecycle telah dibuat pada akun Cloudflare `harvey`. Cloudflare Builds terhubung ke branch `main` GitHub. `PUBLIC_ORIGIN` dan `OWNER_GITHUB_ID` telah disetel. Kredensial OAuth GitHub/Meta/TikTok dan S3 R2 tetap harus diberikan sebagai **Secrets**, bukan disimpan di git.
 
 **Penting (kuota Cloudflare Free):** Akun ini sudah menggunakan semua 5 slot Cron Trigger. Karena deploy dengan dua Cron gagal (`10072`), konfigurasi sementara memakai `triggers.crons: []` tanpa menghapus Cron milik aplikasi lain. Dashboard/API tetap dapat dideploy, tetapi penerbitan terjadwal dan maintenance otomatis **belum berjalan**. Untuk mengaktifkannya sesuai arsitektur semula, sediakan kuota Cron (misalnya lewat peningkatan plan), lalu pulihkan `* * * * *` dan `17 0 * * *` dan redeploy.
@@ -81,7 +83,7 @@ npx wrangler kv namespace create OAUTH_KV
 npx wrangler kv namespace create CACHE
 ```
 
-2. Saat ini origin memakai `https://social-mcp.harveymoeid.workers.dev` dan ID pemilik sudah disetel. Jika menggunakan custom domain, ubah `PUBLIC_ORIGIN`, CORS R2, callback OAuth, dan rute Cloudflare secara konsisten, misalnya:
+2. Saat ini origin memakai `https://sosial-mcp.muidsoft.com` dan ID pemilik sudah disetel. Jika menggunakan custom domain, ubah `PUBLIC_ORIGIN`, CORS R2, callback OAuth, dan rute Cloudflare secara konsisten, misalnya:
 
 ```json
 "routes": [{"pattern": "social.example.com", "custom_domain": true}]
