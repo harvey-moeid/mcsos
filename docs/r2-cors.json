@@ -3,7 +3,7 @@
     {
       "allowed": {
         "origins": [
-          "https://social-mcp.harveymoeid.workers.dev"
+          "https://sosial-mcp.muidsoft.com"
         ],
         "methods": [
           "PUT"
