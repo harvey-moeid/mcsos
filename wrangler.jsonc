@@ -5,7 +5,10 @@
   "preview_urls": false,
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-10-13",
-  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
@@ -36,7 +39,7 @@
     "head_sampling_rate": 1
   },
   "vars": {
-    "PUBLIC_ORIGIN": "https://social-mcp.harveymoeid.workers.dev",
+    "PUBLIC_ORIGIN": "https://sosial-mcp.muidsoft.com",
     "OWNER_GITHUB_ID": "222858980",
     "META_API_VERSION": "v25.0",
     "SCRAPING_ENABLED": "false",
@@ -46,5 +49,11 @@
     "BROWSER_USE_ENABLED": "false",
     "BROWSER_USE_MAX_COST_USD": "0.50",
     "BROWSER_USE_MAX_RUNS_PER_DAY": "20"
-  }
+  },
+  "routes": [
+    {
+      "pattern": "sosial-mcp.muidsoft.com",
+      "custom_domain": true
+    }
+  ]
 }
