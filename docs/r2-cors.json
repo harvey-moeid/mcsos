@@ -1,0 +1,1 @@
+{"rules":[{"allowed":{"origins":["https://social.example.com"],"methods":["PUT"],"headers":["content-type","x-amz-checksum-crc32","x-amz-sdk-checksum-algorithm"]},"exposeHeaders":["ETag"],"maxAgeSeconds":3600}]}
