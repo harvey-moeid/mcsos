@@ -8,34 +8,34 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": true,
+    "run_worker_first": true
   },
   "r2_buckets": [
     {
       "binding": "DATA",
-      "bucket_name": "social-mcp-data",
-    },
+      "bucket_name": "social-mcp-data"
+    }
   ],
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV",
-      "id": "00000000000000000000000000000000",
+      "id": "6e08598e41274553bf7db547512d6f9f"
     },
     {
       "binding": "CACHE",
-      "id": "00000000000000000000000000000001",
-    },
+      "id": "efc61cba98f2463bba732f3c8653f0d4"
+    }
   ],
   "triggers": {
-    "crons": ["* * * * *", "17 0 * * *"],
+    "crons": ["* * * * *", "17 0 * * *"]
   },
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1,
+    "head_sampling_rate": 1
   },
   "vars": {
-    "PUBLIC_ORIGIN": "http://localhost:8787",
-    "OWNER_GITHUB_ID": "UNCONFIGURED",
+    "PUBLIC_ORIGIN": "https://social-mcp.harveymoeid.workers.dev",
+    "OWNER_GITHUB_ID": "222858980",
     "META_API_VERSION": "v25.0",
     "SCRAPING_ENABLED": "false",
     "TIKTOK_DIRECT_POST_ENABLED": "false",
@@ -43,6 +43,6 @@
     "ENVIRONMENT": "production",
     "BROWSER_USE_ENABLED": "false",
     "BROWSER_USE_MAX_COST_USD": "0.50",
-    "BROWSER_USE_MAX_RUNS_PER_DAY": "20",
-  },
+    "BROWSER_USE_MAX_RUNS_PER_DAY": "20"
+  }
 }
