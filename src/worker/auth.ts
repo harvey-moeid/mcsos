@@ -121,6 +121,8 @@ export async function authRoute(
     );
   }
   if (path === "/auth/login" && req.method === "GET") {
+    if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET || !env.SESSION_SECRET)
+      throw new AppError(503, "GitHub OAuth belum dikonfigurasi.");
     const state = crypto.randomUUID(),
       binding = crypto.randomUUID();
     await new Store(env.DATA).put(`auth-state/${await digest(state)}.json`, {
