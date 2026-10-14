@@ -639,33 +639,50 @@ export default function App() {
       {sidebar && (
         <div className="sidebar-overlay" onClick={() => setSidebar(false)} />
       )}
-      <aside className={`sidebar ${sidebar ? "open" : ""}`}>
-        <a
-          className="brand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            setView("inbox");
-          }}
-        >
-          <span className="brand-icon">s.</span>
-          <strong>
-            social<span>mcp</span>
-          </strong>
-        </a>
+      <aside
+        id="workspace-sidebar"
+        aria-label="Sidebar workspace"
+        className={`sidebar ${sidebar ? "open" : ""}`}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setSidebar(false);
+        }}
+      >
+        <div className="sidebar-header">
+          <a
+            className="brand"
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              setView("inbox");
+              setSidebar(false);
+            }}
+          >
+            <span className="brand-icon">s.</span>
+            <strong>
+              social<span>mcp</span>
+            </strong>
+          </a>
+          <button
+            className="icon-btn sidebar-close"
+            aria-label="Tutup navigasi"
+            onClick={() => setSidebar(false)}
+          >
+            <X size={20} />
+          </button>
+        </div>
         <div className="workspace-name">
           <div className="avatar">W</div>
           <span>
             <strong>Personal workspace</strong>
             <small>Satu pemilik · {accounts.length} akun</small>
           </span>
-          <ChevronDown size={16} />
         </div>
         <p className="nav-label">WORKSPACE</p>
-        <nav>
+        <nav aria-label="Navigasi workspace">
           {navigation.map((n) => (
             <button
               key={n.id}
+              aria-current={view === n.id ? "page" : undefined}
               className={`nav-item ${view === n.id ? "active" : ""}`}
               onClick={() => {
                 setView(n.id);
@@ -701,6 +718,7 @@ export default function App() {
                 key={t.id}
                 aria-label={t.label}
                 title={t.label}
+                aria-pressed={theme === t.id}
                 onClick={() => setTheme(t.id)}
               >
                 <t.icon size={15} />
@@ -737,6 +755,8 @@ export default function App() {
           <button
             className="icon-btn mobile-menu"
             aria-label="Menu navigasi"
+            aria-expanded={sidebar}
+            aria-controls="workspace-sidebar"
             onClick={() => setSidebar(true)}
           >
             <Menu size={21} />
