@@ -72,6 +72,22 @@ try {
   if (wrong.status !== 400) throw new Error("Host validation failed");
   console.log("Host validation → 400");
   const bucket = await mf.getR2Bucket("DATA");
+  const claimKey = "runtime-checks/dispatch.json";
+  const initial = await bucket.put(
+    claimKey,
+    JSON.stringify({ status: "scheduled" }),
+  );
+  const claims = await Promise.all(
+    ["publisher", "cancel"].map((winner) =>
+      bucket.put(claimKey, JSON.stringify({ winner }), {
+        onlyIf: { etagMatches: initial.etag },
+      }),
+    ),
+  );
+  if (claims.filter(Boolean).length !== 1)
+    throw new Error("R2 conditional transition must have exactly one winner");
+  await bucket.delete(claimKey);
+  console.log("R2 concurrent conditional writes → one winner");
   await bucket.put(
     "accounts/test.json",
     JSON.stringify({

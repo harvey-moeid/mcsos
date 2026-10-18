@@ -61,7 +61,10 @@ export async function boundedJson(response: Response): Promise<Json> {
     off += c.length;
   }
   try {
-    return JSON.parse(new TextDecoder().decode(all)) as Json;
+    const data: unknown = JSON.parse(new TextDecoder().decode(all));
+    if (!data || typeof data !== "object" || Array.isArray(data))
+      throw new Error("Expected a JSON object");
+    return data as Json;
   } catch {
     throw new PlatformError("Respons platform tidak valid.");
   }
@@ -98,6 +101,17 @@ function obj(v: unknown): Json {
 }
 function array(v: unknown): Json[] {
   return Array.isArray(v) ? v.map(obj) : [];
+}
+function responseId(value: unknown): string {
+  // IDs are opaque: message IDs can contain punctuation or base64 padding.
+  if (typeof value === "string" && value.trim().length > 0) return value;
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0)
+    return String(value);
+  throw new PlatformError(
+    "Platform tidak memberikan ID aksi yang valid; hasil belum diketahui.",
+    false,
+    true,
+  );
 }
 export class Platforms {
   readonly store: Store;
@@ -174,8 +188,21 @@ export class Platforms {
         !readOnly,
       );
     }
-    const data = await boundedJson(response),
-      error = obj(data.error),
+    let data: Json;
+    try {
+      data = await boundedJson(response);
+    } catch {
+      // Fetch resolving only confirms receipt of headers. A broken, empty or
+      // oversized body after a mutation cannot prove the action did not happen.
+      throw new PlatformError(
+        readOnly
+          ? "Respons platform tidak dapat dibaca. Coba kembali nanti."
+          : "Respons platform tidak dapat dibaca; hasil aksi belum diketahui.",
+        readOnly,
+        !readOnly,
+      );
+    }
+    const error = obj(data.error),
       code = String(error.code ?? "ok");
     if (
       !response.ok ||
@@ -379,7 +406,7 @@ export class Platforms {
           ...(photos ? { post_mode: "DIRECT_POST", media_type: "PHOTO" } : {}),
         },
       );
-      return { id: String(obj(r.data).publish_id), phase: "processing" };
+      return { id: responseId(obj(r.data).publish_id), phase: "processing" };
     }
     const params = async (m: Media, isChild = false): Promise<Json> =>
       m.mime.startsWith("image/")
@@ -401,12 +428,12 @@ export class Platforms {
           `${a.platformId}/media`,
           await params(m, true),
         );
-        children.push(String(c.id));
+        children.push(responseId(c.id));
       }
       return { id: children[0], phase: "children", children };
     } else body = await params(media[0]);
     const r = await this.call(a, `${a.platformId}/media`, body);
-    return { id: String(r.id), phase: "container" };
+    return { id: responseId(r.id), phase: "container" };
   }
   async advanceCarousel(
     a: Account,
@@ -434,7 +461,7 @@ export class Platforms {
               is_carousel_item: true,
             };
         const r = await this.call(a, `${a.platformId}/media`, body);
-        children.push(String(r.id));
+        children.push(responseId(r.id));
       }
     }
     if (children.length === media.length && ready.length === children.length) {
@@ -443,7 +470,7 @@ export class Platforms {
         children: children.join(","),
         caption: d.caption,
       });
-      return { children, ready, parentId: String(r.id) };
+      return { children, ready, parentId: responseId(r.id) };
     }
     return { children, ready, parentId: undefined };
   }
@@ -491,7 +518,7 @@ export class Platforms {
     const r = await this.call(a, `${a.platformId}/media_publish`, {
       creation_id: d.providerId,
     });
-    return String(r.id);
+    return responseId(r.id);
   }
   async comments(a: Account, postId: string) {
     if (a.platform === "tiktok")
@@ -521,12 +548,26 @@ export class Platforms {
   async action(a: Account, d: Draft) {
     if (a.platform !== "instagram")
       throw new AppError(409, "Fitur ini tidak tersedia untuk TikTok.");
-    if (d.kind === "comment_reply")
-      return this.call(a, `${d.targetId}/replies`, { message: d.caption });
-    if (d.kind === "comment_moderation")
-      return d.moderation === "delete"
-        ? this.call(a, d.targetId!, undefined, "DELETE")
-        : this.call(a, d.targetId!, { hide: true });
+    if (d.kind === "comment_reply") {
+      const result = await this.call(a, `${d.targetId}/replies`, {
+        message: d.caption,
+      });
+      responseId(result.id);
+      return result;
+    }
+    if (d.kind === "comment_moderation") {
+      const result =
+        d.moderation === "delete"
+          ? await this.call(a, d.targetId!, undefined, "DELETE")
+          : await this.call(a, d.targetId!, { hide: true });
+      if (result.success !== true)
+        throw new PlatformError(
+          "Platform tidak mengonfirmasi moderasi; hasil aksi belum diketahui.",
+          false,
+          true,
+        );
+      return result;
+    }
     // Verify a recent inbound message; API policy is not bypassed by dashboard approval.
     const conv = await this.conversation(a, d.targetId!);
     const participants = array(obj(conv.participants).data);
@@ -544,10 +585,12 @@ export class Platforms {
         409,
         "DM hanya dapat dibalas dalam jendela 24 jam setelah pesan masuk.",
       );
-    return this.call(a, `${a.platformId}/messages`, {
+    const result = await this.call(a, `${a.platformId}/messages`, {
       recipient: { id: recipient.id },
       message: { text: d.caption },
     });
+    responseId(result.message_id);
+    return result;
   }
   async refresh(a: Account) {
     const t = await this.tokens(a);

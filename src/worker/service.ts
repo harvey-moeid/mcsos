@@ -237,12 +237,8 @@ export class SocialService {
         409,
         "Hanya jadwal yang belum diproses dapat dibatalkan.",
       );
-    if (
-      await this.env.DATA.head(
-        `queue/locks/${id}-r${o.value.revision}-a${o.value.attempts}.lock`,
-      )
-    )
-      throw new AppError(409, "Publisher sedang memproses item ini.");
+    // Cancellation and dispatch compete on the same draft ETag. Legacy
+    // pre-dispatch locks cannot prove execution started and must not block cancel.
     const d: Draft = {
       ...o.value,
       status: "draft",
@@ -380,7 +376,7 @@ export class SocialService {
         await this.env.DATA.delete(marker.key);
         continue;
       }
-      const d = o.value;
+      let d = o.value;
       if (!["scheduled", "publishing"].includes(d.status)) {
         if (now.getTime() - marker.uploaded.getTime() > 600000)
           await this.env.DATA.delete(marker.key);
@@ -396,10 +392,7 @@ export class SocialService {
         await this.env.DATA.delete(marker.key);
         continue;
       }
-      processed++;
       if (d.status === "scheduled") {
-        if (!(await this.store.claim(`${d.id}-r${d.revision}-a${d.attempts}`)))
-          continue;
         const running: Draft = {
           ...d,
           status: "publishing",
@@ -408,10 +401,15 @@ export class SocialService {
           executionRevision: 1,
         };
         try {
+          // This conditional transition is the dispatch claim. A separate lock
+          // can survive a failed write and strand a scheduled draft forever.
+          // If R2 commits but its response is lost, do not dispatch: a later
+          // tick will reconcile the publishing draft without repeating an action.
           await this.store.put(`drafts/${d.id}.json`, running, o.etag);
         } catch {
           continue;
         }
+        processed++;
         try {
           const a = await this.account(d.accountId);
           if (d.executionMethod === "browser") {
@@ -488,6 +486,7 @@ export class SocialService {
           }
           continue;
         }
+        processed++;
         try {
           const a = await this.account(d.accountId);
           if (d.providerPhase === "browser") {
@@ -553,11 +552,11 @@ export class SocialService {
             });
             await this.env.DATA.delete(marker.key);
           } else if (p.status === "ready" && d.providerPhase === "container") {
-            const marked = await this.setResult(d, {
+            d = await this.setResult(d, {
               providerPhase: "publish_requested",
             });
-            const id = await this.platforms.finish(a, marked);
-            await this.setResult(marked, {
+            const id = await this.platforms.finish(a, d);
+            await this.setResult(d, {
               status: "published",
               publishedId: id,
             });

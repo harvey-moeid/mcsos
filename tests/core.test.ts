@@ -81,10 +81,9 @@ describe("approval boundaries", () => {
     expect(cancelled.approvedBy).toBeUndefined();
     expect(cancelled.revision).toBe(2);
   });
-  it("cancel is refused once execution is claimed", async () => {
-    const d = await enqueue();
-    await service.store.claim(`${d.id}-r${d.revision}-a${d.attempts}`);
-    await expect(service.cancel(d.id)).rejects.toThrow("memproses");
+  it("cancel is refused once the draft transitions to publishing", async () => {
+    const d = await enqueue(approvedDraft({ status: "publishing" }));
+    await expect(service.cancel(d.id)).rejects.toThrow("belum diproses");
   });
   it("invalid media is rejected at approval", async () => {
     const d = await service.createDraft({ account_id: account.id });
