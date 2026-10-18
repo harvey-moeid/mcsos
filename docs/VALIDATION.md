@@ -34,6 +34,6 @@ Tes concurrency menggunakan binding R2 simulasi dengan conditional writes dan ET
 
 Regresi publisher mencakup lock awal peninggalan versi lama, kegagalan penulisan status, respons R2 hilang setelah commit, persaingan pembatalan dengan dispatch, serta antrean berikutnya tetap diproses. Respons aksi yang rusak atau tidak memiliki konfirmasi menghasilkan `uncertain` tanpa pengiriman ulang. Respons polling yang rusak memakai backoff. Kegagalan `media_publish` dicatat menggunakan revisi eksekusi terbaru. Konfirmasi komentar, moderasi, dan DM juga diperiksa sebelum dianggap berhasil.
 
-Cron tetap sengaja dinonaktifkan (`triggers.crons: []`). Semua approval, termasuk publish segera, masih menunggu scheduler; refresh token dan maintenance otomatis tidak berjalan. Perubahan ini belum dideploy. Kredensial integrasi tidak tersedia di lingkungan pemeriksaan, sehingga hasil lokal ini belum membuktikan OAuth, upload S3, maupun publishing pada akun produksi.
+Cron dan handler terjadwal dihapus. Publikasi Instagram hanya diproses secara manual; refresh token serta maintenance tidak berjalan otomatis. Perubahan ini belum dideploy. Kredensial integrasi tidak tersedia di lingkungan pemeriksaan, sehingga hasil lokal ini belum membuktikan OAuth, upload S3, maupun publishing pada akun produksi.
 
 Jalankan ulang dengan `npm run check`, `npm run secrets:check`, dan `npm run check:runtime`. Gunakan `npm ci` agar versi dependency sesuai lockfile. Prasyarat eksternal dan perbedaan terhadap PRD dijelaskan di README utama.

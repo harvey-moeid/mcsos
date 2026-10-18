@@ -31,9 +31,6 @@
       "id": "efc61cba98f2463bba732f3c8653f0d4"
     }
   ],
-  "triggers": {
-    "crons": []
-  },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
@@ -43,7 +40,6 @@
     "OWNER_GITHUB_ID": "222858980",
     "META_API_VERSION": "v25.0",
     "SCRAPING_ENABLED": "false",
-    "TIKTOK_DIRECT_POST_ENABLED": "false",
     "R2_BUCKET_NAME": "social-mcp-data",
     "ENVIRONMENT": "production",
     "BROWSER_USE_ENABLED": "false",

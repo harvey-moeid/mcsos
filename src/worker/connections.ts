@@ -11,7 +11,7 @@ const scopes = {
     "instagram_business_manage_messages",
     "instagram_business_manage_insights",
   ],
-  tiktok: ["user.info.basic", "user.info.stats", "video.list", "video.publish"],
+  tiktok: ["user.info.basic"],
 };
 export async function connectRoute(
   req: Request,
@@ -116,7 +116,7 @@ export async function connectRoute(
   const profile = await boundedJson(profileResponse);
   if (!profileResponse.ok)
     throw new AppError(502, "Profil akun tidak dapat dibaca.");
-  const tt = profile.data as { user?: { display_name?: string } } | undefined;
+  const tt = profile.data as { user?: { display_name?: string; avatar_url?: string } } | undefined;
   const username = String(
     platform === "instagram"
       ? profile.username
@@ -144,6 +144,7 @@ export async function connectRoute(
     platformId,
     label: existing?.label || username,
     username,
+    avatar: platform === "tiktok" ? tt?.user?.avatar_url : existing?.avatar,
     status: "connected",
     expiresAt: tokens.expiresAt,
     scopes: r.scope ? String(r.scope).split(",") : scopes[platform],

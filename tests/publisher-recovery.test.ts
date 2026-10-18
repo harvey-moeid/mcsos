@@ -54,6 +54,7 @@ describe("dispatch recovery and cancellation", () => {
       id: "container-1",
       phase: "container",
     });
+    vi.spyOn(service.platforms, "poll").mockResolvedValue({ status: "processing" });
     await Promise.all([service.publishTick(), service.publishTick()]);
     await service.publishTick();
     expect(prepare).toHaveBeenCalledTimes(6);

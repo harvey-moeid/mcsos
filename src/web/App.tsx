@@ -503,7 +503,7 @@ export default function App() {
       notify(
         workspace!.demo
           ? "Simulasi: draft disetujui. Tidak ada konten dikirim ke platform."
-          : "Draft disetujui dan masuk antrean publisher.",
+          : "Draft disetujui. Proses antrean manual di halaman Antrean.",
       );
     });
   }
@@ -870,6 +870,14 @@ export default function App() {
                   Buat draft
                 </button>
               )}
+              {view === "queue" && (
+                <button className="button" disabled={busy} onClick={() => run(async () => {
+                  if (workspace.demo) { notify("Demo tidak menjalankan publisher."); return; }
+                  await request("/api/publisher/run", workspace.csrf, "POST", {});
+                  await reload();
+                  notify("Satu putaran antrean selesai. Polling berikutnya memerlukan klik manual.");
+                })}><RefreshCw size={16} /> Proses antrean manual</button>
+              )}
               {view === "analytics" && (
                 <button
                   className="button"
@@ -881,7 +889,7 @@ export default function App() {
                         return;
                       }
                       for (const a of scopedAccounts.filter(
-                        (a) => a.status === "connected",
+                        (a) => a.platform === "instagram" && a.status === "connected",
                       )) {
                         await request(
                           `/api/accounts/${a.id}/stats`,
@@ -1259,6 +1267,7 @@ export default function App() {
                                   : "API perlu koneksi ulang"}
                             </span>
                           </div>
+                          {a.platform === "tiktok" && a.platformId !== "browser-only" && <TikTokProfile id={a.id} csrf={workspace.csrf} demo={workspace.demo} fallbackName={a.username} fallbackAvatar={a.avatar} />}
                           <div className="token-meta">
                             <span>
                               {a.platformId === "browser-only"
@@ -1358,7 +1367,7 @@ export default function App() {
                           </button>
                         </>
                       ) : (
-                        "Display API · Direct Post mengikuti kelayakan app"
+                        "Profil saja · Login Kit"
                       )}
                     </div>
                   </section>
@@ -1370,10 +1379,7 @@ export default function App() {
                   <h4>Prasyarat platform</h4>
                   <p>
                     Instagram membutuhkan akun profesional dan izin app Meta.
-                    TikTok Direct Post untuk alat privat pengelola akun sendiri
-                    tidak memenuhi pedoman audit. Komentar TikTok API
-                    dinonaktifkan; browser dapat membaca dan membuat draft
-                    dengan target yang jelas. DM hanya Instagram.
+                    TikTok hanya untuk melihat profil. Posting, video, komentar, dan DM TikTok dinonaktifkan. Tanpa Cron, antrean Instagram diproses manual.
                   </p>
                 </div>
               </div>
@@ -2113,7 +2119,7 @@ function DraftEditor({
   onSave: (input: Record<string, unknown>, targets: string[]) => void;
 }) {
   const [targets, setTargets] = useState<string[]>(
-      draft ? [draft.accountId] : accounts.slice(0, 1).map((a) => a.id),
+      draft ? [draft.accountId] : accounts.filter((a) => a.platform === "instagram").slice(0, 1).map((a) => a.id),
     ),
     [browserUrl, setBrowserUrl] = useState(draft?.browserTarget?.url || ""),
     [browserAuthor, setBrowserAuthor] = useState(
@@ -2126,14 +2132,7 @@ function DraftEditor({
     [caption, setCaption] = useState(draft?.caption || ""),
     [ids, setIds] = useState(draft?.mediaIds || []),
     [type, setType] = useState<Draft["postType"]>(draft?.postType || "photo"),
-    [time, setTime] = useState(localInput(draft?.scheduledAt)),
-    [privacy, setPrivacy] = useState(draft?.privacy || ""),
-    [commercial, setCommercial] = useState(draft?.commercial || "none"),
-    [disableComment, setDisableComment] = useState(
-      draft?.disableComment || false,
-    ),
-    [disableDuet, setDisableDuet] = useState(draft?.disableDuet || false),
-    [disableStitch, setDisableStitch] = useState(draft?.disableStitch || false);
+    [time, setTime] = useState(localInput(draft?.scheduledAt));
   const isPost = !draft || draft.kind === "post";
   return (
     <Modal
@@ -2160,11 +2159,6 @@ function DraftEditor({
                   }
                 : undefined,
               moderation: draft?.moderation,
-              privacy: privacy || undefined,
-              commercial,
-              disable_comment: disableComment,
-              disable_duet: disableDuet,
-              disable_stitch: disableStitch,
             },
             targets,
           );
@@ -2176,7 +2170,7 @@ function DraftEditor({
             Setiap akun menjadi varian yang disetujui terpisah.
           </span>
           <div className="target-list">
-            {accounts.map((a) => (
+            {accounts.filter((a) => a.platform === "instagram").map((a) => (
               <label
                 key={a.id}
                 className={targets.includes(a.id) ? "selected" : ""}
@@ -2321,66 +2315,6 @@ function DraftEditor({
           />
           <span className="char-count">{caption.length}/2200</span>
         </label>
-        {targets.some(
-          (id) => accounts.find((a) => a.id === id)?.platform === "tiktok",
-        ) &&
-          isPost && (
-            <fieldset className="tiktok-options">
-              <legend>Opsi TikTok</legend>
-              <label className="field">
-                Privasi (pilihan akan diverifikasi saat approve)
-                <select
-                  value={privacy}
-                  onChange={(e) => setPrivacy(e.target.value as typeof privacy)}
-                >
-                  <option value="">Pilih privasi secara eksplisit</option>
-                  <option value="SELF_ONLY">Hanya saya</option>
-                  <option value="PUBLIC_TO_EVERYONE">Publik</option>
-                  <option value="MUTUAL_FOLLOW_FRIENDS">Teman</option>
-                  <option value="FOLLOWER_OF_CREATOR">Pengikut</option>
-                </select>
-              </label>
-              <label className="field">
-                Disclosure konten
-                <select
-                  value={commercial}
-                  onChange={(e) =>
-                    setCommercial(e.target.value as typeof commercial)
-                  }
-                >
-                  <option value="none">Bukan konten komersial</option>
-                  <option value="own_brand">Promosi bisnis sendiri</option>
-                  <option value="paid_partnership">Paid partnership</option>
-                </select>
-              </label>
-              <div className="check-options">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={disableComment}
-                    onChange={(e) => setDisableComment(e.target.checked)}
-                  />
-                  Matikan komentar
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={disableDuet}
-                    onChange={(e) => setDisableDuet(e.target.checked)}
-                  />
-                  Matikan duet
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={disableStitch}
-                    onChange={(e) => setDisableStitch(e.target.checked)}
-                  />
-                  Matikan stitch
-                </label>
-              </div>
-            </fieldset>
-          )}
         <div className="modal-actions">
           <span className="muted">
             <ShieldCheck size={14} /> Belum akan dipublikasikan
@@ -2408,7 +2342,6 @@ function ApprovalDialog({
   media,
   busy,
   demo,
-  csrf,
   onClose,
   onApprove,
 }: {
@@ -2428,18 +2361,7 @@ function ApprovalDialog({
     [executionMethod, setExecutionMethod] = useState<ExecutionMethod>(
       account?.platformId === "browser-only" ? "browser" : "api",
     ),
-    [creator, setCreator] = useState<Record<string, unknown> | null>(null),
-    [error, setError] = useState(""),
     [consent, setConsent] = useState(false);
-  useEffect(() => {
-    if (account?.platform === "tiktok" && !demo && executionMethod === "api")
-      request<Record<string, unknown>>(
-        `/api/accounts/${account.id}/creator`,
-        csrf,
-      )
-        .then(setCreator)
-        .catch((e) => setError(e.message));
-  }, [account, csrf, demo, executionMethod]);
   return (
     <Modal title="Tinjau & setujui" onClose={onClose} wide>
       <div className="approval-layout">
@@ -2454,36 +2376,6 @@ function ApprovalDialog({
             Persetujuan berlaku untuk caption, media, dan akun pada revisi ini.
             Setiap perubahan membutuhkan persetujuan baru.
           </p>
-          {account?.platform === "tiktok" && (
-            <div className="info-box">
-              <AlertTriangle size={17} />
-              <div>
-                <p>
-                  Privasi: {draft.privacy || "Belum dipilih"} · Disclosure:{" "}
-                  {draft.commercial}
-                </p>
-                {creator && (
-                  <p>
-                    Opsi creator: {String(creator.privacy_level_options)}.
-                    Durasi maksimal:{" "}
-                    {String(creator.max_video_post_duration_sec)} detik.
-                  </p>
-                )}
-                {error && <p>{error}</p>}
-                <p>
-                  Konten menggunakan Music Usage Confirmation dan mengikuti
-                  kebijakan TikTok.
-                </p>
-                <a
-                  href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Ketentuan musik <ExternalLink size={12} />
-                </a>
-              </div>
-            </div>
-          )}
           <label className="field">
             Jalur eksekusi
             <select
@@ -2540,7 +2432,7 @@ function ApprovalDialog({
                 checked={mode === "now"}
                 onChange={() => setMode("now")}
               />
-              Approve & publish sekarang
+              Setujui (proses antrean manual)
             </label>
             <label>
               <input
@@ -2548,7 +2440,7 @@ function ApprovalDialog({
                 checked={mode === "scheduled"}
                 onChange={() => setMode("scheduled")}
               />
-              Approve & jadwalkan
+              Setujui & jadwalkan manual
             </label>
           </div>
           {mode === "scheduled" && (
@@ -2573,9 +2465,6 @@ function ApprovalDialog({
               tujuan.{" "}
               {executionMethod === "browser"
                 ? " Saya menyetujui penggunaan Browser Use untuk aksi ini."
-                : ""}
-              {account?.platform === "tiktok"
-                ? " Saya menerima ketentuan penggunaan musik TikTok."
                 : ""}
             </span>
           </label>
@@ -3889,4 +3778,23 @@ function PageSelection({
       </div>
     </Modal>
   );
+}
+
+function TikTokProfile({ id, csrf, demo, fallbackName, fallbackAvatar }: { id: string; csrf?: string; demo: boolean; fallbackName: string; fallbackAvatar?: string }) {
+  const [profile, setProfile] = useState<{ displayName: string; avatarUrl: string } | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const avatar = profile?.avatarUrl || fallbackAvatar;
+  return <div className="token-meta">
+    {avatar && <img src={avatar} alt="Foto profil TikTok" width={42} height={42} referrerPolicy="no-referrer" style={{ borderRadius: "50%", objectFit: "cover" }} />}
+    <strong>{profile?.displayName || fallbackName}</strong>
+    <button className="text-button" disabled={loading} onClick={async () => {
+      if (demo) { setProfile({ displayName: fallbackName, avatarUrl: fallbackAvatar || "" }); return; }
+      setLoading(true); setError("");
+      try { setProfile(await request<{ displayName: string; avatarUrl: string }>(`/api/accounts/${id}/profile`, csrf)); }
+      catch (e) { setError(e instanceof Error ? e.message : "Gagal membaca profil TikTok."); }
+      finally { setLoading(false); }
+    }}>{loading ? "Memuat profil…" : "Lihat profil TikTok"}</button>
+    {error && <span role="alert">{error}</span>}
+  </div>;
 }
