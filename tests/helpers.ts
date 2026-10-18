@@ -79,14 +79,13 @@ export function environment(bucket = new MemoryBucket()): RuntimeEnv {
     OWNER_GITHUB_ID: "42",
     META_API_VERSION: "v25.0",
     SCRAPING_ENABLED: "false",
-    TIKTOK_DIRECT_POST_ENABLED: "false",
     R2_BUCKET_NAME: "test",
     ENVIRONMENT: "test",
     TOKEN_ENCRYPTION_KEY: btoa(
       String.fromCharCode(...new Uint8Array(32).fill(7)),
     ),
     SESSION_SECRET: "test-session-secret-with-at-least-32-bytes",
-  } as RuntimeEnv;
+  } as unknown as RuntimeEnv;
 }
 export const account: Account = {
   id: "account-1",
