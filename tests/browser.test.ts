@@ -165,17 +165,23 @@ describe("profile binding and approval", () => {
     expect(approved.approvedBrowserBinding).toBe(1);
     await expect(social.approve(d.id, 1, "42")).rejects.toThrow();
   });
-  it("does not silently select browser when TikTok Direct Post API is disabled", async () => {
+  it("rejects every TikTok draft action in profile-only mode", async () => {
     await social.store.put(`accounts/${a.id}.json`, {
       ...a,
       platform: "tiktok",
     });
-    const d = await social.createDraft({
-      account_id: a.id,
-      media_ids: [media.id],
-      privacy: "SELF_ONLY",
+    await expect(
+      social.createDraft({
+        account_id: a.id,
+        media_ids: [media.id],
+      }),
+    ).rejects.toThrow("profil");
+    const existing = approvedDraft({
+      accountId: a.id,
+      status: "draft",
     });
-    await expect(social.approve(d.id, 1, "42")).rejects.toThrow("Direct Post");
+    await social.store.put(`drafts/${existing.id}.json`, existing);
+    await expect(social.approve(existing.id, 1, "42", undefined, "browser", true)).rejects.toThrow("profil");
     expect(browser.cloud.createRun).not.toHaveBeenCalled();
   });
   it("invalidates the old approval binding when profile settings change", async () => {
