@@ -24,9 +24,9 @@ flowchart LR
   Dashboard --> API[Worker /api]
   MCP --> Draft[R2 draft JSON]
   API -->|Approval revisi tertentu| Queue[R2 scheduled markers]
-  Cron[Cron setiap menit] --> Queue
+  Owner[Pemilik memproses manual] --> Queue
   Queue --> Publisher[Publisher + conditional claims]
-  Publisher --> Platforms[Meta / TikTok API]
+  Publisher --> Platforms[Instagram API]
   Dashboard -->|Presigned PUT / multipart| R2[R2 media]
   Platforms -->|Signed URL + range requests| R2
 ```
@@ -56,7 +56,7 @@ Isi `.dev.vars`:
 | `R2_ACCOUNT_ID`                              | Account ID Cloudflare                                   |
 | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`   | Kredensial S3 R2, batasi ke bucket ini                  |
 
-Di `wrangler.jsonc`, ganti `PUBLIC_ORIGIN` dan `OWNER_GITHUB_ID`. ID pemilik adalah **GitHub numeric user ID**, bukan username. Identitas lain ditolak. Biarkan `TIKTOK_DIRECT_POST_ENABLED=false` sampai kelayakan app dan semua ketentuan platform terpenuhi. Scraping juga default `false`.
+Di `wrangler.jsonc`, ganti `PUBLIC_ORIGIN` dan `OWNER_GITHUB_ID`. ID pemilik adalah **GitHub numeric user ID**, bukan username. Identitas lain ditolak. Scraping juga default `false`.
 
 Callback yang didaftarkan:
 
@@ -73,7 +73,7 @@ MCP memakai consent per klien, OAuth 2.1 dan PKCE melalui `@cloudflare/workers-o
 
 **Status 13 Oktober 2026:** Worker `social-mcp`, bucket R2 `social-mcp-data`, namespace KV `SOCIAL_MCP_OAUTH_KV` dan `SOCIAL_MCP_CACHE`, CORS dan aturan lifecycle telah dibuat pada akun Cloudflare `harvey`. Cloudflare Builds terhubung ke branch `main` GitHub. `PUBLIC_ORIGIN` dan `OWNER_GITHUB_ID` telah disetel. Kredensial OAuth GitHub/Meta/TikTok dan S3 R2 tetap harus diberikan sebagai **Secrets**, bukan disimpan di git.
 
-**Penting (kuota Cloudflare Free):** Akun ini sudah menggunakan semua 5 slot Cron Trigger. Karena deploy dengan dua Cron gagal (`10072`), konfigurasi sementara memakai `triggers.crons: []` tanpa menghapus Cron milik aplikasi lain. Dashboard/API tetap dapat dideploy, tetapi penerbitan terjadwal dan maintenance otomatis **belum berjalan**. Untuk mengaktifkannya sesuai arsitektur semula, sediakan kuota Cron (misalnya lewat peningkatan plan), lalu pulihkan `* * * * *` dan `17 0 * * *` dan redeploy.
+**Cron dihapus.** Worker tidak lagi memiliki scheduled handler atau trigger. Pemilik memproses antrean Instagram melalui tombol **Antrean → Proses antrean manual**. Waktu posting di kalender tidak dieksekusi otomatis.
 
 1. Resource produksi sudah dibuat dan ID KV yang sebenarnya sudah tercantum pada `wrangler.jsonc`. Langkah CLI berikut untuk provisioning ulang **tidak perlu dijalankan**:
 
@@ -111,7 +111,7 @@ npx wrangler r2 bucket lifecycle add social-mcp-data connect-state connect-state
 npx wrangler r2 bucket lifecycle add social-mcp-data pending-connect connect-pending/ --expire-days 1
 ```
 
-Setelah Cron dapat diaktifkan kembali, Cron memiliki pembersihan tambahan dengan pagination dan cursor tersimpan. Aturan lifecycle R2 diperlukan agar retensi tidak bergantung pada kecepatan sapuan harian. Eksekusi lifecycle adalah layanan Cloudflare, bukan janji penghapusan tepat pada detik batas 365 hari.
+Cron tidak digunakan untuk pembersihan otomatis. Aturan lifecycle R2 diperlukan agar retensi tidak bergantung pada kecepatan sapuan harian. Eksekusi lifecycle adalah layanan Cloudflare, bukan janji penghapusan tepat pada detik batas 365 hari.
 
 6. Validasi lalu deploy:
 
@@ -123,7 +123,7 @@ npx wrangler deploy --dry-run
 npx wrangler deploy
 ```
 
-Konfigurasi yang direncanakan memiliki Cron publisher setiap menit dan maintenance pukul 00:17 UTC (07:17 WIB), tetapi **keduanya dinonaktifkan sementara karena batas Cloudflare Free**. Publisher memproses maksimal 5 item/tahap per invocation; polling tertunda dipindahkan agar tidak menghambat item berikutnya. Maintenance menjadwalkan pekerjaan per akun, lalu Cron memproses maksimal 2 akun per menit agar refresh/snapshot tidak membuat burst API. Carousel dibuat dalam batch kecil dan menunggu container anak siap sebelum membuat parent. Budget CPU, operasi R2, KV OAuth, dan subrequest perlu diukur pada akun Cloudflare yang dipakai. Target free plan belum berarti biaya $0 terverifikasi. Pemeriksaan MP4 besar, crypto, dan banyak akun dapat membutuhkan paket Workers berbayar; tidak ada upgrade otomatis.
+Tidak ada Cron. Satu klik proses antrean manual menangani maksimal lima item per putaran; polling lanjutan perlu klik lagi. Target free plan belum berarti biaya $0 terverifikasi. Pemeriksaan MP4 besar, crypto, dan banyak akun dapat membutuhkan paket Workers berbayar; tidak ada upgrade otomatis.
 
 ## Browser Use sebagai opsi tambahan
 
@@ -139,15 +139,13 @@ Untuk riset resmi, gunakan **Facebook Login untuk riset** pada halaman akun. Aku
 
 Instagram Login refresh otomatis bila token mendekati expiry. Facebook Login tidak mempunyai refresh token yang ekuivalen; saat grant mendekati expiry, dashboard meminta otorisasi ulang. App review dan perubahan izin platform tidak dapat diselesaikan hanya dengan kode.
 
-Publish Instagram membuat media container, memeriksa status lewat Cron berikutnya, lalu meminta media_publish. JPEG, MP4/MOV, Reels, dan carousel sampai 10 item didukung. Pemrosesan konten platform bisa melebihi 2 menit; yang dikendalikan aplikasi adalah pengambilan antrean oleh Cron, bukan waktu moderasi platform.
+Publish Instagram membuat media container dan menunggu putaran manual berikutnya sebelum melanjutkan. JPEG, MP4/MOV, Reels, dan carousel sampai 10 item didukung. Pemrosesan konten platform bisa melebihi 2 menit; yang dikendalikan aplikasi adalah pengambilan antrean oleh Cron, bukan waktu moderasi platform.
 
 DM dibatasi pada balasan percakapan yang memiliki pesan masuk dalam jendela 24 jam; tidak ada cara melewati kebijakan platform. Log hanya metadata, bukan isi DM. Komentar/moderasi mempunyai approval yang sama dengan posting.
 
-## Koneksi TikTok
+## Koneksi TikTok: profil saja
 
-Login Kit + Display API untuk profil dan video; `user.info.stats` dibutuhkan untuk statistik yang tersedia. Komentar TikTok dinonaktifkan karena tidak tersedia pada Display API umum. Direct Post video/foto mempunyai adapter `PULL_FROM_URL`, creator info, pilihan privasi eksplisit, disclosure komersial, pengaturan komentar/duet/stitch, konfirmasi musik, dan polling status.
-
-**Kendala PRD:** pedoman Content Sharing TikTok menyatakan tool privat yang hanya mengunggah ke akun milik sendiri/tim bukan use case Direct Post yang dapat diterima untuk audit. Karena produk ini satu pemilik, publishing publik TikTok tidak dapat dijanjikan. Feature flag default mati. Kode adapter tidak berarti app telah disetujui; jangan mengaktifkannya untuk menghindari pembatasan. Pilih workflow/produk resmi yang memang disetujui TikTok bila diperlukan.
+Login Kit meminta izin `user.info.basic` saja. Dashboard menampilkan nama dan foto profil melalui endpoint owner-only `GET /api/accounts/:id/profile`. Tidak ada TikTok Direct Post, list video, analitik, komentar, DM, dan tidak ada draft atau approval TikTok. Instagram tetap punya antrean yang dijalankan secara manual.
 
 ## Media dan konsistensi
 
@@ -158,7 +156,7 @@ Login Kit + Display API untuk profil dan video; `user.info.stats` dibutuhkan unt
 - Publisher mengklaim draft lewat perubahan `scheduled` → `publishing` dengan conditional put pada ETag draft. Pembatalan memakai ETag yang sama, sehingga hanya satu perubahan dapat menang. Lock awal dari versi lama tidak lagi menghalangi draft yang masih `scheduled`; polling tetap memakai claim per revisi eksekusi.
 - Kegagalan menulis status sebelum dispatch dapat dicoba lagi pada tick berikutnya. Bila penulisan berhasil tetapi respons R2 hilang, publisher tidak mengirim aksi dan menandai hasil `uncertain` setelah batas pemulihan; tidak ada pengiriman ulang otomatis.
 - Retry/backoff terbatas hanya untuk kegagalan sementara yang aman sebelum side effect atau polling baca. Respons aksi yang kosong, rusak, terputus, terlalu besar, atau tidak menyertakan konfirmasi yang diperlukan menjadi `uncertain` dan **tidak otomatis dikirim ulang**. Respons polling yang tidak terbaca dapat dicoba lagi dengan backoff.
-- TikTok `publish_id` dan Instagram container disimpan untuk rekonsiliasi. Crash sebelum ID tersimpan tidak dapat membuktikan exactly-once API eksternal; dashboard meminta pemeriksaan manual. API platform tidak menawarkan idempotency key universal yang bisa dijamin aplikasi.
+- Instagram container disimpan untuk rekonsiliasi. Crash sebelum ID tersimpan tidak dapat membuktikan exactly-once API eksternal; dashboard meminta pemeriksaan manual. API platform tidak menawarkan idempotency key universal yang bisa dijamin aplikasi.
 - `uncertain` dan `rejected` adalah status tambahan agar hasil ambigu dan feedback pemilik terlihat.
 - Cross-post membuat draft independen per akun, bukan perubahan rasio media otomatis. Caption/media setiap varian dapat diedit; media harus disiapkan sesuai platform.
 

@@ -157,6 +157,8 @@ export class Platforms {
     body?: Json,
     method?: string,
   ): Promise<Json> {
+    if (a.platform === "tiktok" && (body !== undefined || (method && method !== "GET") || path !== "user/info/?fields=open_id,display_name,avatar_url"))
+      throw new AppError(403, "TikTok hanya untuk melihat profil.");
     await this.rateLimit(a);
     const t = await this.tokens(a);
     if (Date.parse(t.expiresAt) <= Date.now())
@@ -165,11 +167,7 @@ export class Platforms {
       a.platform === "instagram"
         ? `https://${a.loginMode === "facebook" ? "graph.facebook.com" : "graph.instagram.com"}/${this.env.META_API_VERSION}/`
         : "https://open.tiktokapis.com/v2/";
-    const readOnly =
-      (method || (!body ? "GET" : "POST")) === "GET" ||
-      /^(video\/(list|query)|post\/publish\/(status\/fetch|creator_info\/query))\//.test(
-        path,
-      );
+    const readOnly = (method || (!body ? "GET" : "POST")) === "GET";
     let response: Response;
     try {
       response = await fetch(base + path, {
@@ -265,90 +263,31 @@ export class Platforms {
         source: "official",
       };
     }
-    const p = await this.call(
-      a,
-      "user/info/?fields=open_id,display_name,follower_count,likes_count,video_count",
-    );
-    const u = obj(obj(p.data).user);
-    return {
-      accountId: a.id,
-      capturedAt: new Date().toISOString(),
-      followers: Number(u.follower_count || 0),
-      views: 0,
-      likes: Number(u.likes_count || 0),
-      comments: 0,
-      shares: 0,
-      source: "official",
-    };
+    throw new AppError(403, "Statistik TikTok dinonaktifkan. Hanya profil dasar.");
   }
   async posts(a: Account, cursor?: string) {
-    const r =
-      a.platform === "instagram"
-        ? await this.call(
-            a,
-            `${a.platformId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=25${cursor ? `&after=${encodeURIComponent(cursor)}` : ""}`,
-          )
-        : await this.call(
-            a,
-            "video/list/?fields=id,title,video_description,cover_image_url,share_url,create_time,view_count,like_count,comment_count,share_count",
-            { max_count: 20, ...(cursor ? { cursor: Number(cursor) } : {}) },
-          );
-    const data = a.platform === "instagram" ? r : obj(r.data);
-    const posts = array(
-      a.platform === "instagram" ? data.data : data.videos,
-    ).map(
-      (p) =>
-        ({
-          id: String(p.id),
-          accountId: a.id,
-          caption: String(p.caption || p.video_description || p.title || ""),
-          createdAt:
-            a.platform === "instagram"
-              ? String(p.timestamp)
-              : new Date(Number(p.create_time) * 1000).toISOString(),
-          type: String(p.media_type || "VIDEO"),
-          url: String(p.permalink || p.share_url || ""),
-          thumbnail: String(
-            p.thumbnail_url ||
-              p.cover_image_url ||
-              (p.media_type === "IMAGE" ? p.media_url : "") ||
-              "",
-          ),
-          views: Number(p.view_count || 0),
-          likes: Number(p.like_count || 0),
-          comments: Number(p.comments_count || p.comment_count || 0),
-          shares: Number(p.share_count || 0),
-        }) satisfies Post,
-    );
-    for (const p of posts)
-      await this.store.put(`posts/${a.id}/${p.id}.json`, p);
-    return {
-      items: posts,
-      cursor:
-        a.platform === "instagram"
-          ? String(obj(obj(r.paging).cursors).after || "") || undefined
-          : data.has_more
-            ? String(data.cursor)
-            : undefined,
-    };
+    if (a.platform !== "instagram") throw new AppError(403, "Video TikTok tidak tersedia dalam mode profil.");
+    const r = await this.call(a, `${a.platformId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=25${cursor ? `&after=${encodeURIComponent(cursor)}` : ""}`);
+    const posts = array(r.data).map((item) => ({
+      id: String(item.id), accountId: a.id, caption: String(item.caption || ""),
+      createdAt: String(item.timestamp), type: String(item.media_type || "VIDEO"),
+      url: String(item.permalink || ""),
+      thumbnail: String(item.thumbnail_url || (item.media_type === "IMAGE" ? item.media_url : "") || ""),
+      views: Number(item.view_count || 0), likes: Number(item.like_count || 0),
+      comments: Number(item.comments_count || 0), shares: 0,
+    }) satisfies Post);
+    for (const post of posts) await this.store.put(`posts/${a.id}/${post.id}.json`, post);
+    return { items: posts, cursor: String(obj(obj(r.paging).cursors).after || "") || undefined };
   }
   async metrics(a: Account, postId: string) {
-    if (a.platform === "instagram")
-      return this.call(
-        a,
-        `${postId}/insights?metric=views,reach,saved,shares,total_interactions`,
-      );
-    return this.call(
-      a,
-      "video/query/?fields=id,view_count,like_count,comment_count,share_count",
-      { filters: { video_ids: [postId] } },
-    );
+    if (a.platform !== "instagram") throw new AppError(403, "Metrik TikTok tidak tersedia.");
+    return this.call(a, `${postId}/insights?metric=views,reach,saved,shares,total_interactions`);
   }
-  async creator(a: Account) {
+  async tiktokProfile(a: Account) {
     if (a.platform !== "tiktok") throw new AppError(400, "Hanya untuk TikTok.");
-    return obj(
-      (await this.call(a, "post/publish/creator_info/query/", {})).data,
-    );
+    const result = await this.call(a, "user/info/?fields=open_id,display_name,avatar_url");
+    const user = obj(obj(result.data).user);
+    return { displayName: String(user.display_name || a.username), avatarUrl: String(user.avatar_url || a.avatar || "") };
   }
   async prepare(
     a: Account,
@@ -360,54 +299,7 @@ export class Platforms {
     phase: "container" | "processing" | "children";
     children?: string[];
   }> {
-    if (a.platform === "tiktok") {
-      if (this.env.TIKTOK_DIRECT_POST_ENABLED !== "true")
-        throw new AppError(
-          409,
-          "Direct Post TikTok dinonaktifkan. App privat untuk akun sendiri tidak memenuhi pedoman audit; gunakan workflow resmi yang disetujui.",
-        );
-      const creator = await this.creator(a);
-      if (
-        !d.privacy ||
-        !Array.isArray(creator.privacy_level_options) ||
-        !creator.privacy_level_options.includes(d.privacy)
-      )
-        throw new AppError(400, "Pilih privasi dari opsi terbaru TikTok.");
-      if (
-        media.some(
-          (m) =>
-            m.duration &&
-            m.duration > Number(creator.max_video_post_duration_sec || 600),
-        )
-      )
-        throw new AppError(400, "Durasi melebihi batas creator TikTok.");
-      const post_info = {
-        title: d.caption,
-        privacy_level: d.privacy,
-        disable_comment: !!d.disableComment || !!creator.comment_disabled,
-        disable_duet: !!d.disableDuet || !!creator.duet_disabled,
-        disable_stitch: !!d.disableStitch || !!creator.stitch_disabled,
-        brand_content_toggle: d.commercial === "paid_partnership",
-        brand_organic_toggle: d.commercial === "own_brand",
-      };
-      const photos = media.every((m) => m.mime.startsWith("image/"));
-      const r = await this.call(
-        a,
-        photos ? "post/publish/content/init/" : "post/publish/video/init/",
-        {
-          post_info,
-          source_info: photos
-            ? {
-                source: "PULL_FROM_URL",
-                photo_cover_index: 0,
-                photo_images: await Promise.all(media.map(url)),
-              }
-            : { source: "PULL_FROM_URL", video_url: await url(media[0]) },
-          ...(photos ? { post_mode: "DIRECT_POST", media_type: "PHOTO" } : {}),
-        },
-      );
-      return { id: responseId(obj(r.data).publish_id), phase: "processing" };
-    }
+    if (a.platform !== "instagram") throw new AppError(403, "TikTok tidak mendukung posting.");
     const params = async (m: Media, isChild = false): Promise<Json> =>
       m.mime.startsWith("image/")
         ? {
@@ -481,26 +373,7 @@ export class Platforms {
     status: "processing" | "ready" | "published" | "failed";
     publishedId?: string;
   }> {
-    if (a.platform === "tiktok") {
-      const r = obj(
-        (
-          await this.call(a, "post/publish/status/fetch/", {
-            publish_id: d.providerId,
-          })
-        ).data,
-      );
-      return {
-        status:
-          r.status === "PUBLISH_COMPLETE"
-            ? "published"
-            : r.status === "FAILED"
-              ? "failed"
-              : "processing",
-        publishedId: Array.isArray(r.publicaly_available_post_id)
-          ? String(r.publicaly_available_post_id[0] || d.providerId)
-          : d.providerId,
-      };
-    }
+    if (a.platform !== "instagram") throw new AppError(403, "Tidak ada status posting TikTok.");
     const r = await this.call(a, `${d.providerId}?fields=status_code`);
     return {
       status:
@@ -515,6 +388,7 @@ export class Platforms {
     };
   }
   async finish(a: Account, d: Draft) {
+    if (a.platform !== "instagram") throw new AppError(403, "TikTok tidak mendukung posting.");
     const r = await this.call(a, `${a.platformId}/media_publish`, {
       creation_id: d.providerId,
     });

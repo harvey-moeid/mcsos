@@ -245,7 +245,6 @@ async function api(req: Request, env: RuntimeEnv) {
     return Response.json({
       mcpUrl: env.PUBLIC_ORIGIN + "/mcp",
       scrapingEnabled: env.SCRAPING_ENABLED === "true",
-      tiktokDirectPostEnabled: env.TIKTOK_DIRECT_POST_ENABLED === "true",
       instagramLogin: "Instagram Login",
       chatUploadLimitMB: 10,
       browserUseConfigured:
@@ -350,6 +349,10 @@ async function api(req: Request, env: RuntimeEnv) {
       return Response.json(await browser.poll(id));
     }
   }
+  if (path === "/api/publisher/run" && req.method === "POST") {
+    await service.publishTick();
+    return Response.json({ ok: true, mode: "manual" });
+  }
   if (path === "/api/drafts" && req.method === "POST")
     return Response.json(await service.createDraft(await body(req)), {
       status: 201,
@@ -444,7 +447,7 @@ async function api(req: Request, env: RuntimeEnv) {
     return Response.json({ results });
   }
   const account = path.match(
-    /^\/api\/accounts\/([\w-]+)(?:\/(refresh|stats|posts|creator|comments|conversations))?$/,
+    /^\/api\/accounts\/([\w-]+)(?:\/(refresh|stats|posts|profile|comments|conversations))?$/,
   );
   if (account) {
     const id = ident.parse(account[1]),
@@ -489,8 +492,8 @@ async function api(req: Request, env: RuntimeEnv) {
           u.searchParams.get("cursor") || undefined,
         ),
       );
-    if (account[2] === "creator")
-      return Response.json(await service.platforms.creator(a));
+    if (account[2] === "profile" && req.method === "GET")
+      return Response.json(await service.platforms.tiktokProfile(a));
     if (account[2] === "comments")
       return Response.json(
         await service.platforms.comments(
@@ -669,21 +672,5 @@ export default {
         },
       );
     }
-  },
-  async scheduled(
-    controller: ScheduledController,
-    env: RuntimeEnv,
-    ctx: ExecutionContext,
-  ) {
-    const service = new SocialService(env);
-    ctx.waitUntil(
-      controller.cron === "17 0 * * *"
-        ? service.maintenance()
-        : (async () => {
-            await service.publishTick(new Date(controller.scheduledTime));
-            await service.maintenanceAccounts();
-            await service.browser.tick();
-          })(),
-    );
   },
 } satisfies ExportedHandler<RuntimeEnv>;

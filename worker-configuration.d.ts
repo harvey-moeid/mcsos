@@ -9,7 +9,6 @@ interface __BaseEnv_Env {
 	OWNER_GITHUB_ID: string;
 	META_API_VERSION: string;
 	SCRAPING_ENABLED: string;
-	TIKTOK_DIRECT_POST_ENABLED: string;
 	R2_BUCKET_NAME: string;
 	ENVIRONMENT: string;
 	BROWSER_USE_ENABLED: string;
@@ -27,7 +26,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "PUBLIC_ORIGIN" | "OWNER_GITHUB_ID" | "META_API_VERSION" | "SCRAPING_ENABLED" | "TIKTOK_DIRECT_POST_ENABLED" | "R2_BUCKET_NAME" | "ENVIRONMENT" | "BROWSER_USE_ENABLED" | "BROWSER_USE_MAX_COST_USD" | "BROWSER_USE_MAX_RUNS_PER_DAY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "PUBLIC_ORIGIN" | "OWNER_GITHUB_ID" | "META_API_VERSION" | "SCRAPING_ENABLED" | "R2_BUCKET_NAME" | "ENVIRONMENT" | "BROWSER_USE_ENABLED" | "BROWSER_USE_MAX_COST_USD" | "BROWSER_USE_MAX_RUNS_PER_DAY">> {}
 }
 declare module "*.txt" {
 	const value: string;

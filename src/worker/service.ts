@@ -31,7 +31,8 @@ export class SocialService {
   }
   async createDraft(input: unknown, crosspostId?: string) {
     const p = draftInput.parse(input);
-    await this.account(p.account_id);
+    const a = await this.account(p.account_id);
+    if (a.platform === "tiktok") throw new AppError(403, "TikTok hanya untuk melihat profil.");
     const at = new Date().toISOString();
     const d: Draft = {
       id: crypto.randomUUID(),
@@ -70,6 +71,7 @@ export class SocialService {
   async updateDraft(id: string, input: unknown) {
     const o = await this.store.require<Draft>(`drafts/${id}.json`);
     assertEditable(o.value);
+    if ((await this.account(o.value.accountId)).platform === "tiktok") throw new AppError(403, "Draft TikTok dinonaktifkan.");
     const p = draftInput.parse(input);
     if (p.account_id !== o.value.accountId || p.kind !== o.value.kind)
       throw new AppError(400, "Akun dan jenis aksi tidak dapat diubah.");
@@ -137,15 +139,7 @@ export class SocialService {
     )
       throw new AppError(409, "Hubungkan ulang akun sebelum menyetujui.");
     validateMedia(o.value, a, await this.media(o.value.mediaIds));
-    if (
-      method === "api" &&
-      a.platform === "tiktok" &&
-      this.env.TIKTOK_DIRECT_POST_ENABLED !== "true"
-    )
-      throw new AppError(
-        409,
-        "Direct Post TikTok belum tersedia untuk app ini.",
-      );
+    if (a.platform === "tiktok") throw new AppError(403, "Semua aksi TikTok dinonaktifkan: profil saja.");
     if (method === "browser") {
       if (
         (await this.media(o.value.mediaIds)).some(
@@ -167,17 +161,6 @@ export class SocialService {
           throw new AppError(400, "Target browser belum diisi.");
         validateBrowserTarget(o.value.browserTarget, a.platform, o.value.kind);
       }
-      if (a.platform === "tiktok" && o.value.kind === "dm_reply")
-        throw new AppError(400, "DM TikTok tidak didukung.");
-      if (
-        a.platform === "tiktok" &&
-        o.value.kind === "post" &&
-        !o.value.privacy
-      )
-        throw new AppError(
-          400,
-          "Privasi TikTok wajib dipilih secara eksplisit.",
-        );
     }
     if (o.value.kind === "comment_moderation" && !o.value.moderation)
       throw new AppError(400, "Pilih hide atau delete.");
@@ -269,6 +252,7 @@ export class SocialService {
   }
   async stats(id: string, force = false) {
     const a = await this.account(id);
+    if (a.platform === "tiktok") throw new AppError(403, "Statistik TikTok tidak tersedia, lihat profil.");
     const latest = await this.store.get<Stats>(`stats-latest/${id}.json`);
     if (
       !force &&
@@ -412,6 +396,7 @@ export class SocialService {
         processed++;
         try {
           const a = await this.account(d.accountId);
+          if (a.platform === "tiktok") throw new AppError(403, "Publikasi TikTok dinonaktifkan.");
           if (d.executionMethod === "browser") {
             const job = await this.browser.startAction(
               a,
@@ -489,6 +474,7 @@ export class SocialService {
         processed++;
         try {
           const a = await this.account(d.accountId);
+          if (a.platform === "tiktok") throw new AppError(403, "Publikasi TikTok dinonaktifkan.");
           if (d.providerPhase === "browser") {
             const job = await this.browser.poll(
               d.browserJobId || d.providerId!,

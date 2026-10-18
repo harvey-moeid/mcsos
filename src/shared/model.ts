@@ -239,8 +239,6 @@ export function validateMedia(
       : media.length !== 1
   )
     throw new Error("Jumlah media tidak sesuai jenis posting.");
-  if (a.platform === "tiktok" && d.postType === "reel")
-    throw new Error("Gunakan jenis video untuk TikTok.");
   for (const m of media) {
     if (!m.verified || m.width <= 0 || m.height <= 0)
       throw new Error("Media belum divalidasi.");
@@ -258,8 +256,6 @@ export function validateMedia(
         throw new Error("Video harus MP4 atau MOV.");
       if (d.postType === "photo")
         throw new Error("Jenis foto tidak menerima video.");
-      if (a.platform === "tiktok" && d.postType === "carousel")
-        throw new Error("Carousel TikTok hanya menerima foto.");
       if (!m.duration || m.duration < 3 || m.duration > maxDuration)
         throw new Error(`Durasi video harus 3–${maxDuration} detik.`);
       if (m.size > 1024 * 1024 * 1024)
