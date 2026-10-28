@@ -14,9 +14,15 @@ export class MemoryBucket {
       key,
       etag: o.etag,
       uploaded: o.uploaded,
-      size: text.length,
+      size:
+        typeof o.value === "string"
+          ? new TextEncoder().encode(o.value).length
+          : o.value.byteLength,
       json: async () => JSON.parse(text),
-      arrayBuffer: async () => new TextEncoder().encode(text).buffer,
+      arrayBuffer: async () =>
+        typeof o.value === "string"
+          ? new TextEncoder().encode(o.value).buffer
+          : o.value.slice().buffer,
     };
   }
   async head(key: string) {

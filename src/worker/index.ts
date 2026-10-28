@@ -4,41 +4,12 @@ import {
 } from "@cloudflare/workers-oauth-provider";
 import { z } from "zod";
 import { ownerApi } from "./owner-api";
-import { tiktokApi } from "./tiktok-api";
-import { TikTokService } from "./tiktok-service";
-import { authRoute, requireOwner, type AuthEnv } from "./auth";
+import { authRoute, type AuthEnv } from "./auth";
 import { connectRoute, facebookConnect } from "./connections";
 import { mcpFetch } from "./mcp";
-import { BrowserService } from "./browser-service";
-import {
-  executionMethodSchema,
-  browserReadSchema,
-  safeBrowserJob,
-  type BrowserJob,
-  type BrowserLogin,
-} from "../shared/browser";
-import { SocialService } from "./service";
 import { AppError } from "./store";
-import {
-  safeAccount,
-  type Draft,
-  type Account,
-  type Stats,
-  type Post,
-  type Media,
-  type Activity,
-  type Idea,
-  type Tokens,
-} from "../shared/model";
 import type { RuntimeEnv } from "./platforms";
-import { verify, open, seal } from "./crypto";
-import {
-  initiateUpload,
-  uploadPartUrl,
-  completeUpload,
-  abortUpload,
-  deleteMedia,
-} from "./media";
+import { verify } from "./crypto";
 async function mediaFetch(req: Request, env: RuntimeEnv) {
   const u = new URL(req.url),
     key = decodeURIComponent(u.pathname.slice("/media/".length)),
@@ -47,8 +18,10 @@ async function mediaFetch(req: Request, env: RuntimeEnv) {
   if (
     !key.startsWith("media/") ||
     !env.SESSION_SECRET ||
-    !/^\d+$/.test(expires) || !Number.isSafeInteger(Number(expires)) ||
-    Number(expires) < Date.now() / 1000 || Number(expires) > Date.now() / 1000 + 86460 ||
+    !/^\d+$/.test(expires) ||
+    !Number.isSafeInteger(Number(expires)) ||
+    Number(expires) < Date.now() / 1000 ||
+    Number(expires) > Date.now() / 1000 + 86460 ||
     !(await verify(`${key}:${expires}`, sig, env.SESSION_SECRET))
   )
     throw new AppError(403, "URL media tidak valid atau kedaluwarsa.");

@@ -2,12 +2,8 @@ import { z } from "zod";
 import { tiktokApi } from "./tiktok-api";
 import { TikTokService } from "./tiktok-service";
 import { requireOwner } from "./auth";
-import { connectRoute, facebookConnect } from "./connections";
-import { mcpFetch } from "./mcp";
-import { BrowserService } from "./browser-service";
 import {
   executionMethodSchema,
-  browserReadSchema,
   safeBrowserJob,
   type BrowserJob,
   type BrowserLogin,
@@ -26,7 +22,7 @@ import {
   type Tokens,
 } from "../shared/model";
 import type { RuntimeEnv } from "./platforms";
-import { verify, open, seal } from "./crypto";
+import { open, seal } from "./crypto";
 import {
   initiateUpload,
   uploadPartUrl,
@@ -66,6 +62,8 @@ export async function ownerApi(req: Request, env: RuntimeEnv) {
     path = u.pathname,
     service = new SocialService(env),
     store = service.store;
+  if (!["GET", "HEAD"].includes(req.method))
+    await store.consume("dashboard", 120);
   const tt = await tiktokApi(req, service, owner.id, () => body(req));
   if (tt) return tt;
   if (path === "/api/workspace" && req.method === "GET") {
@@ -312,7 +310,7 @@ export async function ownerApi(req: Request, env: RuntimeEnv) {
     const p = z
       .object({
         account_ids: z.array(ident).min(2).max(20),
-        input: z.record(z.unknown()),
+        input: z.record(z.string(), z.unknown()),
       })
       .parse(await body(req));
     const group = crypto.randomUUID(),
@@ -338,6 +336,12 @@ export async function ownerApi(req: Request, env: RuntimeEnv) {
       return Response.json({ ok: true });
     }
     if (req.method === "POST" && draft[2] === "approve") {
+      const existing = (await store.require<Draft>(`drafts/${id}.json`)).value;
+      if ((await service.account(existing.accountId)).platform === "tiktok")
+        throw new AppError(
+          400,
+          "Gunakan approval khusus TikTok dengan konfirmasi username dan konten.",
+        );
       const p = z
         .object({
           revision: z.number().int(),
@@ -404,7 +408,8 @@ export async function ownerApi(req: Request, env: RuntimeEnv) {
     const id = ident.parse(account[1]),
       a = await service.account(id);
     if (req.method === "DELETE" && !account[2]) {
-      if (a.platform === "tiktok") return Response.json(await new TikTokService(env).disconnect(id));
+      if (a.platform === "tiktok")
+        return Response.json(await new TikTokService(env).disconnect(id));
       const o = await store.require<Account>(`accounts/${id}.json`);
       await store.put(
         `accounts/${id}.json`,
@@ -536,6 +541,15 @@ export async function ownerApi(req: Request, env: RuntimeEnv) {
         .regex(/^\d{4}-\d{2}-\d{2}$/)
         .parse(u.searchParams.get("date"));
       prefix += date.replaceAll("-", "/") + "/";
+    }
+    if (kind === "media") {
+      const page = await store.list<Media>(prefix, cursor, 50);
+      const items = [];
+      for (const m of page.items.filter(
+        (m) => !accountId || !m.accountId || m.accountId === accountId,
+      ))
+        items.push({ ...m, previewUrl: await service.mediaUrl(m) });
+      return Response.json({ ...page, items });
     }
     return Response.json(await store.list(prefix, cursor, 50));
   }

@@ -150,7 +150,7 @@ export class BrowserCloud implements ConnectedSessionProvider {
       .object({
         id: uuid,
         status: z.enum(["active", "stopped"]),
-        metadata: z.record(z.string()).optional(),
+        metadata: z.record(z.string(), z.string()).optional(),
       })
       .parse(await this.call(`browsers/${uuid.parse(id)}`));
   }

@@ -53,12 +53,38 @@ export class Store {
     }
     return { items, cursor: l.truncated ? l.cursor : undefined };
   }
+  async consume(scope: string, limit: number) {
+    const key = `limits/internal-${scope}/${Math.floor(Date.now() / 60000)}.json`;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const o = await this.get<{ count: number }>(key);
+      if ((o?.value.count || 0) >= limit)
+        throw new AppError(
+          429,
+          "Batas permintaan per menit tercapai. Tunggu sebelum mencoba lagi.",
+        );
+      const value = { count: (o?.value.count || 0) + 1 };
+      try {
+        if (o) await this.put(key, value, o.etag);
+        else if (!(await this.create(key, value))) continue;
+        return;
+      } catch (e) {
+        if (!(e instanceof AppError && e.status === 409)) throw e;
+      }
+    }
+    throw new AppError(429, "Permintaan bersamaan terlalu banyak.");
+  }
   async locked<T>(name: string, work: () => Promise<T>): Promise<T> {
     const key = `mutation-locks/${name}.json`;
     const token = crypto.randomUUID();
     if (!(await this.create(key, { token, at: new Date().toISOString() })))
-      throw new AppError(409, "Operasi bersamaan sedang berjalan. Muat ulang; bila tetap terkunci, periksa recovery lock.", "conflict");
-    try { return await work(); } finally {
+      throw new AppError(
+        409,
+        "Operasi bersamaan sedang berjalan. Muat ulang; bila tetap terkunci, periksa recovery lock.",
+        "conflict",
+      );
+    try {
+      return await work();
+    } finally {
       const current = await this.get<{ token: string }>(key);
       if (current?.value.token === token) await this.bucket.delete(key);
     }

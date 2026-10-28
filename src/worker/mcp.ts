@@ -75,6 +75,7 @@ export async function mcpFetch(
         try {
           if (write && !ctx.auth.scope.includes("mcp:draft"))
             throw new AppError(403, "Scope mcp:draft diperlukan.");
+          await service.store.consume("mcp", 120);
           const parsed = z.object(schema).parse(args);
           const result = await fn(parsed);
           await service.store.log(`mcp.${name}`, "success", {
@@ -92,9 +93,11 @@ export async function mcpFetch(
               {
                 type: "text" as const,
                 text:
-                  e instanceof z.ZodError ? "Input tool tidak valid." : e instanceof AppError
-                    ? e.message
-                    : "Permintaan gagal. Periksa dashboard log.",
+                  e instanceof z.ZodError
+                    ? "Input tool tidak valid."
+                    : e instanceof AppError
+                      ? e.message
+                      : "Permintaan gagal. Periksa dashboard log.",
               },
             ],
           };
@@ -117,7 +120,10 @@ export async function mcpFetch(
     "Statistik akun dengan cache 15 menit.",
     account,
     false,
-    async (p) => (await service.account(p.account_id)).platform === "tiktok" ? new TikTokService(env).analytics(p.account_id) : service.stats(p.account_id),
+    async (p) =>
+      (await service.account(p.account_id)).platform === "tiktok"
+        ? new TikTokService(env).analytics(p.account_id)
+        : service.stats(p.account_id),
   );
   tool(
     "list_posts",
@@ -125,10 +131,12 @@ export async function mcpFetch(
     { ...account, cursor: z.string().optional() },
     false,
     async (p) => ({
-      ...((await service.account(p.account_id)).platform === "tiktok" ? await tiktokHistory(p.account_id, p.cursor) : await service.platforms.posts(
-        await service.account(p.account_id),
-        p.cursor,
-      )),
+      ...((await service.account(p.account_id)).platform === "tiktok"
+        ? await tiktokHistory(p.account_id, p.cursor)
+        : await service.platforms.posts(
+            await service.account(p.account_id),
+            p.cursor,
+          )),
       trust: "untrusted_external_data",
     }),
   );
@@ -137,15 +145,34 @@ export async function mcpFetch(
     "Metrik konten resmi.",
     { ...account, post_id: id },
     false,
-    async (p) => (await service.account(p.account_id)).platform === "tiktok" ? { ...(await new TikTokService(env).analytics(p.account_id)), filterPostId: p.post_id } : service.platforms.metrics(await service.account(p.account_id), p.post_id),
+    async (p) => {
+      if ((await service.account(p.account_id)).platform !== "tiktok")
+        return service.platforms.metrics(
+          await service.account(p.account_id),
+          p.post_id,
+        );
+      const tt = new TikTokService(env);
+      await tt.draft(p.post_id, p.account_id);
+      const page = await tt.analytics(p.account_id);
+      return {
+        ...page,
+        items: page.items.filter((m) => m.postId === p.post_id),
+      };
+    },
   );
   tool(
     "compare_accounts",
-    "Bandingkan metrik terkini antar akun.",
+    "Bandingkan metrik akun; TikTok mengembalikan snapshot manual berhalaman dengan sumber dan waktu.",
     { account_ids: z.array(id).min(2).max(10) },
     false,
     async (p) => ({
-      items: await Promise.all(p.account_ids.map(async (id) => (await service.account(id)).platform === "tiktok" ? { accountId: id, ...await new TikTokService(env).analytics(id) } : service.stats(id))),
+      items: await Promise.all(
+        p.account_ids.map(async (id) =>
+          (await service.account(id)).platform === "tiktok"
+            ? { accountId: id, ...(await new TikTokService(env).analytics(id)) }
+            : service.stats(id),
+        ),
+      ),
     }),
   );
   tool(
@@ -158,7 +185,8 @@ export async function mcpFetch(
     },
     false,
     async (p) => {
-      if ((await service.account(p.account_id)).platform === "tiktok") return new TikTokService(env).analytics(p.account_id, p.cursor);
+      if ((await service.account(p.account_id)).platform === "tiktok")
+        return new TikTokService(env).analytics(p.account_id, p.cursor);
       return service.store.list<Stats>(
         `stats/${p.account_id}/${p.year ? `${p.year}/` : ""}`,
         p.cursor,
@@ -169,7 +197,12 @@ export async function mcpFetch(
   tool(
     "create_post_draft",
     "Buat draft posting; tidak approve/publish.",
-    draftInput.omit({ kind: true, target_id: true, moderation: true, expected_revision: true }).shape,
+    draftInput.omit({
+      kind: true,
+      target_id: true,
+      moderation: true,
+      expected_revision: true,
+    }).shape,
     true,
     (p) => service.createDraft({ ...p, kind: "post" }),
   );
@@ -219,10 +252,35 @@ export async function mcpFetch(
   );
   tool(
     "list_scheduled",
-    "Daftar marker antrean terjadwal.",
-    pagination,
+    "Marker antrean existing; sertakan account_id TikTok untuk konten manual scheduled/ready/awaiting_verification.",
+    { ...pagination, account_id: id.optional() },
     false,
-    (p) => service.store.list("queue/scheduled/", p.cursor, p.limit),
+    async (p) => {
+      if (
+        p.account_id &&
+        (await service.account(p.account_id)).platform === "tiktok"
+      ) {
+        const page = await service.store.list<Draft>(
+          "drafts/",
+          p.cursor,
+          p.limit,
+        );
+        return {
+          ...page,
+          items: page.items.filter(
+            (d) =>
+              d.accountId === p.account_id &&
+              [
+                "scheduled",
+                "ready_for_manual_publish",
+                "awaiting_verification",
+              ].includes(d.status),
+          ),
+          mode: "manual_action_required",
+        };
+      }
+      return service.store.list("queue/scheduled/", p.cursor, p.limit);
+    },
   );
   tool(
     "upload_media_from_chat",
@@ -238,8 +296,25 @@ export async function mcpFetch(
     true,
     (p) => uploadFromChat(env, p),
   );
-  tool("list_media", "Pustaka media.", pagination, false, (p) =>
-    service.store.list<Media>("media-meta/", p.cursor, p.limit),
+  tool(
+    "list_media",
+    "Pustaka media; filter akun opsional termasuk media legacy bersama pemilik.",
+    { ...pagination, account_id: id.optional() },
+    false,
+    async (p) => {
+      if (p.account_id) await service.account(p.account_id);
+      const page = await service.store.list<Media>(
+        "media-meta/",
+        p.cursor,
+        p.limit,
+      );
+      return {
+        ...page,
+        items: page.items.filter(
+          (m) => !p.account_id || !m.accountId || m.accountId === p.account_id,
+        ),
+      };
+    },
   );
   tool(
     "list_comments",
@@ -471,9 +546,24 @@ export async function mcpFetch(
   async function tiktokHistory(accountId: string, cursor?: string) {
     await new TikTokService(env).account(accountId);
     const page = await service.store.list<Draft>("drafts/", cursor, 50);
-    return { ...page, items: page.items.filter(d => d.accountId === accountId && d.status === "published" && d.publication), source: "manual" };
+    return {
+      ...page,
+      items: page.items.filter(
+        (d) =>
+          d.accountId === accountId &&
+          d.status === "published" &&
+          d.publication,
+      ),
+      source: "manual",
+    };
   }
-  tool("generate_tiktok_content", "Persiapan script, hook, caption, hashtag, ide, kalender, variasi, CTA, repurpose dan rekomendasi AI. Provider opsional berbiaya; tidak menyetujui/publish. Bahasa id/en; output tidak tepercaya.", aiInput.shape, true, p => new AIService(env).generate(p));
+  tool(
+    "generate_tiktok_content",
+    "Persiapan script, hook, caption, hashtag, ide, kalender, variasi, CTA, repurpose dan rekomendasi AI. Provider opsional berbiaya; tidak menyetujui/publish. Bahasa id/en; output tidak tepercaya.",
+    aiInput.shape,
+    true,
+    (p) => new AIService(env).generate(p),
+  );
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
