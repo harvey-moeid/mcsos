@@ -1,6 +1,6 @@
 # Daftar file berubah terhadap baseline 5712fd4
 
-77 file source, konfigurasi, tes, dokumentasi dan evidence.
+78 file source, konfigurasi, tes, dokumentasi dan evidence.
 
 - [.github/workflows/check.yml](../.github/workflows/check.yml)
 - [.gitignore](../.gitignore)
@@ -20,6 +20,7 @@
 - [docs/TIKTOK_SESSION_GUIDE.md](../docs/TIKTOK_SESSION_GUIDE.md)
 - [docs/TIKTOK_TEST_REPORT.md](../docs/TIKTOK_TEST_REPORT.md)
 - [docs/TROUBLESHOOTING.md](../docs/TROUBLESHOOTING.md)
+- [docs/VALIDATION.md](../docs/VALIDATION.md)
 - [docs/evidence/android-queue.png](../docs/evidence/android-queue.png)
 - [docs/evidence/artifacts.log](../docs/evidence/artifacts.log)
 - [docs/evidence/baseline.log](../docs/evidence/baseline.log)

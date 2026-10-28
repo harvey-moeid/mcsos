@@ -19,7 +19,8 @@ Branch: `feat/tiktok-ai-studio-v2`, base main `5712fd4d333c07c7b074a891e2cdc5535
 - `7b26144` — hardening sesi, schema provider, isolation, dependency dan tes.
 - `74a1fb1` — UI modular, studio, queue, analytics dan Chromium tests.
 - `66f211f` — CI, staging terisolasi, runtime/artifact gate dan dokumentasi.
-- Commit bukti akhir/dokumentasi tambahan tercatat pada git log branch.
+- `9e4c56b` — evidence final dan laporan pengujian.
+- Commit pengaitan PR/dokumentasi tercatat pada git log branch.
 
 Daftar lengkap file berubah disimpan dalam [TIKTOK_CHANGED_FILES.md](TIKTOK_CHANGED_FILES.md). Modul baru utama: shared/tiktok, shared/tool-names, worker/tiktok-service, tiktok-api, ai-service, session-provider, owner-api, web/TikTokWorkspace dan web/tiktok/*. UI existing, middleware/security, media, MCP, konfigurasi, scripts, CI, dependencies, tests dan dokumentasi diperbarui.
 
@@ -66,7 +67,7 @@ MCP 35 tools: 34 existing digunakan kembali, generator TikTok ditambah; draft/re
 | Wrangler production dry-run | PASS | Hanya bundle/config, tidak deploy atau provision resource |
 | Wrangler staging dry-run | PASS | Template tanpa resource ID produksi; belum provisioning live |
 | Artifact validation | PASS | Identitas Worker/domain/R2/KV, no-Cron, default publish off, SPA/Worker artifact |
-| Chromium UI desktop/Android | PASS | 8 tes: desktop 1440×1000 dan Android 393×851, Chromium nyata; evidence/ui.log, ui-results.json dan screenshot |
+| Chromium UI desktop/Android | PASS | 8 tes: desktop 1440×1000 dan emulasi viewport Android 393×851, Chromium nyata; evidence/ui.log, ui-results.json dan screenshot |
 | GitHub Actions remote run | NOT TESTED | Workflow disiapkan; lihat PR setelah push untuk status CI remote aktual |
 | Staging live deployment/smoke | BLOCKED | Kredensial Cloudflare dan origin/resource staging nyata belum tersedia |
 | Production deployment | BLOCKED | Belum diminta approval final; staging live dan konfigurasi eksternal belum tervalidasi |
@@ -103,7 +104,7 @@ Staging template menggunakan nama Worker/bucket dan namespace baru, tanpa ID pro
 
 Blocker eksternal: konfigurasi app GitHub/Meta callback dan secrets server, R2 signing/CORS untuk environment nyata, resource/origin staging, akses Cloudflare untuk memeriksa Builds, key/model/izin biaya provider opsional, pemilik untuk login/verifikasi TikTok live. Tidak ada kewajiban mengaktifkan AI/browser berbayar untuk menggunakan editor/handoff manual.
 
-PR: belum dibuat saat laporan awal ditulis; URL akan ditambahkan setelah push. Tidak merge main atau deploy produksi.
+PR draft: https://github.com/harvey-moeid/mcsos/pull/2 . Branch berhasil dipush. Tidak merge main atau deploy produksi.
 
 Langkah produksi: jalankan validation gate → siapkan staging terisolasi → smoke staging dan login/MCP/media live oleh pemilik → review PR/konfigurasi Cloudflare Builds existing → persetujuan pemilik → satu pipeline deploy → verifikasi domain/auth/MCP/Instagram dan fitur manual. Instruksi executable pada [TIKTOK_DEPLOYMENT.md](TIKTOK_DEPLOYMENT.md).
 
