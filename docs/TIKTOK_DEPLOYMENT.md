@@ -52,7 +52,7 @@ STAGING_PUBLIC_ORIGIN=https://HOST_STAGING npm run smoke:staging
 
 ## Production
 
-README baseline menyatakan Cloudflare Builds terhubung ke branch main. **Periksa Settings → Builds di dashboard Cloudflare terlebih dahulu**, termasuk production branch, build/deploy command, secrets, route dan protection. Akses ini belum tersedia pada environment pengerjaan. Jangan menambah GitHub Actions deploy kedua. PR branch tidak boleh dipromosikan otomatis sebelum pemilik menyetujui gate dan staging.
+README baseline menyatakan Cloudflare Builds terhubung ke branch main. **Periksa Settings → Builds di dashboard Cloudflare terlebih dahulu**, termasuk production branch, build/deploy command, secrets, route dan protection. Koneksi akun Cloudflare terbaca, tetapi permintaan resource Worker/Builds terblokir autentikasi ulang pada pemeriksaan ini; status live belum terverifikasi. Jangan menambah GitHub Actions deploy kedua. PR branch tidak boleh dipromosikan otomatis sebelum pemilik menyetujui gate dan staging.
 
 Sesudah hasil staging ditinjau dan **persetujuan pemilik atas deployment produksi**:
 

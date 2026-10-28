@@ -1,6 +1,6 @@
 # Daftar file berubah terhadap baseline 5712fd4
 
-78 file source, konfigurasi, tes, dokumentasi dan evidence.
+80 file source, konfigurasi, tes, dokumentasi dan evidence.
 
 - [.github/workflows/check.yml](../.github/workflows/check.yml)
 - [.gitignore](../.gitignore)
@@ -25,8 +25,10 @@
 - [docs/evidence/artifacts.log](../docs/evidence/artifacts.log)
 - [docs/evidence/baseline.log](../docs/evidence/baseline.log)
 - [docs/evidence/check.log](../docs/evidence/check.log)
+- [docs/evidence/cloudflare-readiness.json](../docs/evidence/cloudflare-readiness.json)
 - [docs/evidence/dependency-audit.json](../docs/evidence/dependency-audit.json)
 - [docs/evidence/desktop-queue.png](../docs/evidence/desktop-queue.png)
+- [docs/evidence/github-actions.json](../docs/evidence/github-actions.json)
 - [docs/evidence/npm-ci.log](../docs/evidence/npm-ci.log)
 - [docs/evidence/runtime.log](../docs/evidence/runtime.log)
 - [docs/evidence/secrets.log](../docs/evidence/secrets.log)

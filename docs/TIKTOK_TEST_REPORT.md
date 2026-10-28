@@ -68,7 +68,7 @@ MCP 35 tools: 34 existing digunakan kembali, generator TikTok ditambah; draft/re
 | Wrangler staging dry-run | PASS | Template tanpa resource ID produksi; belum provisioning live |
 | Artifact validation | PASS | Identitas Worker/domain/R2/KV, no-Cron, default publish off, SPA/Worker artifact |
 | Chromium UI desktop/Android | PASS | 8 tes: desktop 1440×1000 dan emulasi viewport Android 393×851, Chromium nyata; evidence/ui.log, ui-results.json dan screenshot |
-| GitHub Actions remote run | NOT TESTED | Workflow disiapkan; lihat PR setelah push untuk status CI remote aktual |
+| GitHub Actions remote run | PASS | Run 40786490001 pada commit 2fec274: seluruh langkah, termasuk 8 tes Chromium dan upload artifact, sukses |
 | Staging live deployment/smoke | BLOCKED | Kredensial Cloudflare dan origin/resource staging nyata belum tersedia |
 | Production deployment | BLOCKED | Belum diminta approval final; staging live dan konfigurasi eksternal belum tervalidasi |
 | GitHub/Meta/TikTok OAuth live | NOT TESTED | Tidak ada kredensial atau sesi akun pribadi yang dipakai |
@@ -98,14 +98,21 @@ Variables dan seluruh nama secrets (tanpa nilai) tercantum lengkap pada [CONFIGU
 
 Flag baru TIKTOK_SESSION_ENABLED, TIKTOK_CONTENT_STUDIO_ENABLED, TIKTOK_ANALYTICS_ENABLED, TIKTOK_BROWSER_PUBLISH_ENABLED dan AI_CONTENT_ENABLED semuanya default false. AI_PROVIDER=none, AI_MODEL kosong, limits disetel konservatif. BROWSER_USE_ENABLED dan batas biaya existing dipertahankan. Resource ID produksi, origin dan owner tidak berubah.
 
-Staging template menggunakan nama Worker/bucket dan namespace baru, tanpa ID produksi. Generate origin aktual lewat prepare-staging.mjs sebelum deploy. Belum ada staging remote atau production deploy. Cloudflare Builds ke main tercatat pada README baseline; status live/integrasi build harus diperiksa pemilik melalui dashboard karena tidak ada kredensial Cloudflare tersedia di lingkungan.
+Staging template menggunakan nama Worker/bucket dan namespace baru, tanpa ID produksi. Generate origin aktual lewat prepare-staging.mjs sebelum deploy. Belum ada staging remote atau production deploy. Cloudflare Builds ke main tercatat pada README baseline. Koneksi Cloudflare dapat membaca identitas akun, tetapi pembacaan daftar Worker/settings/deployment/Builds berulang kali gagal dengan respons autentikasi ulang; tidak ada data resource live yang berhasil diverifikasi. Credential CLI Cloudflare juga tidak diinjeksi ke environment. Periksa Builds pada dashboard sebelum produksi.
 
 ## 8. Blocker eksternal, PR, deploy dan rollback
 
-Blocker eksternal: konfigurasi app GitHub/Meta callback dan secrets server, R2 signing/CORS untuk environment nyata, resource/origin staging, akses Cloudflare untuk memeriksa Builds, key/model/izin biaya provider opsional, pemilik untuk login/verifikasi TikTok live. Tidak ada kewajiban mengaktifkan AI/browser berbayar untuk menggunakan editor/handoff manual.
+Blocker eksternal: konfigurasi app GitHub/Meta callback dan secrets server, R2 signing/CORS untuk environment nyata, resource/origin staging, autentikasi Worker/Builds melalui connector atau credential CLI Cloudflare yang berfungsi, key/model/izin biaya provider opsional, pemilik untuk login/verifikasi TikTok live. Tidak ada kewajiban mengaktifkan AI/browser berbayar untuk menggunakan editor/handoff manual.
 
 PR draft: https://github.com/harvey-moeid/mcsos/pull/2 . Branch berhasil dipush. Tidak merge main atau deploy produksi.
 
 Langkah produksi: jalankan validation gate → siapkan staging terisolasi → smoke staging dan login/MCP/media live oleh pemilik → review PR/konfigurasi Cloudflare Builds existing → persetujuan pemilik → satu pipeline deploy → verifikasi domain/auth/MCP/Instagram dan fitur manual. Instruksi executable pada [TIKTOK_DEPLOYMENT.md](TIKTOK_DEPLOYMENT.md).
 
 Rollback: catat version/deployment ID sebelum release; gunakan `npx wrangler versions list`, `npx wrangler deployments list`, lalu `npx wrangler rollback VERSION_ID_SEBELUMNYA`. Hentikan pipeline lain yang bisa menimpa rollback, pertahankan encryption/signing secrets, simpan semua data R2 dan verifikasi auth/MCP/Instagram/media kembali. Schema additive tidak membutuhkan bulk rewrite; versi profil lama dapat menyembunyikan draft TikTok baru tanpa menghapusnya.
+
+
+## Pembaruan validasi remote
+
+[GitHub Actions run 40786490001](https://github.com/harvey-moeid/mcsos/actions/runs/40786490001) **PASS** pada `2fec2747ae8c07d7ec7e03577f12581f76606520`. Semua gate sukses, termasuk browser tests dan upload artifact `validation-evidence` (digest SHA-256 `9199a07db420061de20d31c4ecf6298f06a21e720dcdd15f3a1b7f9de2913347`). Commit sesudahnya hanya memperbarui dokumentasi/evidence remote, tanpa perubahan source aplikasi. Run sebelumnya dibatalkan oleh concurrency ketika commit dokumentasi baru dipush; bukan kegagalan assertion.
+
+Readiness Cloudflare live: identitas akun terbaca, tetapi tiga percobaan read-only resource Worker/Builds mengembalikan permintaan autentikasi ulang tanpa data. Tidak ada operasi mutasi Cloudflare yang dijalankan. Lihat evidence/cloudflare-readiness.json. Ini blocker autentikasi connector, bukan hasil deploy staging atau produksi.

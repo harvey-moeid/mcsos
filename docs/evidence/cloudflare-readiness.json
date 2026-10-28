@@ -1,0 +1,10 @@
+{
+  "account_identity": "PASS",
+  "worker_builds_deployments_read": "BLOCKED",
+  "reason": "Connector repeatedly returned authentication requested/accepted; retry without resource data.",
+  "read_only_attempts": 3,
+  "mutations_performed": false,
+  "cli_credentials_in_environment": false,
+  "staging_deployment": "NOT TESTED",
+  "production_deployment": "NOT TESTED"
+}

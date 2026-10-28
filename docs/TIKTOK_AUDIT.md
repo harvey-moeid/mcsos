@@ -15,7 +15,7 @@ Audit mencakup semua modul Worker/shared, React/App/BrowserPanels/client/demo/st
 
 ## Temuan terverifikasi
 
-Browser Use default nonaktif; `createDraft/updateDraft/approve` memblokir semua TikTok; profil TikTok saja melalui API. Approval terikat revisi dan binding browser. Cron serta scheduled handler tidak ada. R2/KV existing sesuai target, resource ID tidak perlu diganti. Cloudflare Builds ke main dinyatakan pada README; status live belum dapat diperiksa tanpa kredensial Cloudflare. Tidak menambah deploy otomatis lain.
+Browser Use default nonaktif; `createDraft/updateDraft/approve` memblokir semua TikTok; profil TikTok saja melalui API. Approval terikat revisi dan binding browser. Cron serta scheduled handler tidak ada. R2/KV existing sesuai target, resource ID tidak perlu diganti. Cloudflare Builds ke main dinyatakan pada README; status live belum dapat diverifikasi (pemeriksaan akhir connector Worker/Builds terblokir autentikasi ulang). Tidak menambah deploy otomatis lain.
 
 Risiko yang diperbaiki: persaingan pengikatan profile lintas akun (scan saja tidak atomik), CAPTCHA provider perlu dinonaktifkan eksplisit, semua aksi/ekstraksi TikTok agent harus diblokir secara struktural, output error MCP tidak boleh memantulkan input Zod, sesi owner perlu revocation saat logout, URL media perlu angka expiry finite. Deletion media bersamaan dengan penambahan referensi perlu penguncian bersama. Semua keterbatasan eksternal dilaporkan, bukan dianggap sukses.
 
