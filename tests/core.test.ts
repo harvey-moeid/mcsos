@@ -321,7 +321,7 @@ describe("MCP protocol and tool surface", () => {
       auth: { scope: ["mcp:read", "mcp:draft"] },
     }) as OAuthResourceContext<{ ownerId: string }>;
   it("exposes all planned tools and no approval/publish tools", () => {
-    expect(TOOL_NAMES.length).toBe(34);
+    expect(TOOL_NAMES.length).toBe(35);
     expect(TOOL_NAMES.some((x) => /approve|publish/.test(x))).toBe(false);
   });
   it("handles initialize over stateless Streamable HTTP", async () => {

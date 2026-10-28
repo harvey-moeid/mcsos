@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ConnectedSessionProvider } from "./session-provider";
 import { AppError } from "./store";
 import { boundedJson, type RuntimeEnv } from "./platforms";
 const uuid = z.string().uuid();
@@ -32,7 +33,7 @@ export class BrowserCloudError extends AppError {
     );
   }
 }
-export class BrowserCloud {
+export class BrowserCloud implements ConnectedSessionProvider {
   constructor(readonly env: RuntimeEnv) {}
   assertConfigured() {
     if (
@@ -134,6 +135,7 @@ export class BrowserCloud {
       profileId,
       timeout: 10,
       enableRecording: false,
+      solveCaptchas: false,
       proxyCountryCode: null,
       metadata,
     });

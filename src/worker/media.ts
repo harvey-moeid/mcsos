@@ -13,8 +13,9 @@ import { SocialService } from "./service";
 import type { RuntimeEnv } from "./platforms";
 import type { Media } from "../shared/model";
 export const mediaInput = z.object({
+  account_id: z.string().regex(/^[\w-]{1,100}$/).optional(),
   filename: z.string().min(1).max(150),
-  mime: z.enum(["image/jpeg", "video/mp4", "video/quicktime"]),
+  mime: z.enum(["image/jpeg", "image/webp", "image/png", "video/mp4", "video/quicktime"]),
   size: z
     .number()
     .int()
@@ -66,6 +67,19 @@ export function jpegDimensions(b: Uint8Array) {
     i += 2 + len;
   }
   throw new AppError(400, "Dimensi JPEG tidak dapat divalidasi.");
+}
+export function imageDimensions(b: Uint8Array, mime: string) {
+  if (mime === "image/jpeg") return jpegDimensions(b);
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  if (mime === "image/png" && b.length >= 24 && [137,80,78,71,13,10,26,10].every((x,i) => b[i] === x) && v.getUint32(12) === 0x49484452)
+    return { width: v.getUint32(16), height: v.getUint32(20) };
+  const ascii = (offset: number) => String.fromCharCode(...b.slice(offset, offset + 4));
+  if (mime === "image/webp" && b.length >= 30 && ascii(0) === "RIFF" && ascii(8) === "WEBP") {
+    if (ascii(12) === "VP8X") return { width: 1 + b[24] + (b[25] << 8) + (b[26] << 16), height: 1 + b[27] + (b[28] << 8) + (b[29] << 16) };
+    if (ascii(12) === "VP8 " && b[23] === 0x9d && b[24] === 1 && b[25] === 0x2a) return { width: v.getUint16(26,true) & 0x3fff, height: v.getUint16(28,true) & 0x3fff };
+    if (ascii(12) === "VP8L" && b[20] === 0x2f) return { width: 1 + ((b[22] & 0x3f) << 8 | b[21]), height: 1 + ((b[24] & 15) << 10 | b[23] << 2 | b[22] >> 6) };
+  }
+  throw new AppError(400, "Header gambar tidak valid atau format tidak didukung.");
 }
 function videoMetadata(b: Uint8Array) {
   const view = new DataView(b.buffer, b.byteOffset, b.byteLength),
@@ -140,8 +154,11 @@ async function inspect(env: RuntimeEnv, m: Media) {
   });
   if (!head) throw new AppError(400, "File upload belum tersedia.");
   const bytes = new Uint8Array(await head.arrayBuffer());
-  if (m.mime === "image/jpeg")
-    return { ...m, ...jpegDimensions(bytes), verified: true };
+  if (m.mime.startsWith("image/")) {
+    const dimensions = imageDimensions(bytes, m.mime);
+    if (!dimensions.width || !dimensions.height || dimensions.width > 20000 || dimensions.height > 20000 || dimensions.width * dimensions.height > 100000000 || m.size > 20 * 1024 ** 2) throw new AppError(400, "Dimensi atau ukuran gambar terlalu besar.");
+    return { ...m, ...dimensions, verified: true };
+  }
   if (String.fromCharCode(...bytes.slice(4, 8)) !== "ftyp")
     throw new AppError(400, "File bukan MP4/MOV yang didukung.");
   try {
@@ -161,8 +178,10 @@ async function inspect(env: RuntimeEnv, m: Media) {
 export async function initiateUpload(env: RuntimeEnv, input: unknown) {
   const p = mediaInput.parse(input),
     id = crypto.randomUUID();
+  if (p.account_id) await new SocialService(env).account(p.account_id);
   const filename = p.filename.replace(/[^\w. -]/g, "_");
   const media: Media = {
+    accountId: p.account_id,
     id,
     key: `media/${id}/${filename}`,
     filename,
@@ -331,11 +350,15 @@ export async function uploadFromChat(
   }
 }
 export async function deleteMedia(service: SocialService, id: string) {
+  return service.store.locked("media-references", () => deleteMediaUnlocked(service, id));
+}
+async function deleteMediaUnlocked(service: SocialService, id: string) {
   const meta = await service.store.require<Media>(`media-meta/${id}.json`);
+  for (const prefix of ["drafts/", "draft-history/"]) {
   let cursor: string | undefined;
   do {
     const page = await service.store.list<import("../shared/model").Draft>(
-      "drafts/",
+      prefix,
       cursor,
       100,
     );
@@ -346,6 +369,7 @@ export async function deleteMedia(service: SocialService, id: string) {
       );
     cursor = page.cursor;
   } while (cursor);
+  }
   await service.env.DATA.delete([meta.value.key, `media-meta/${id}.json`]);
   await service.store.log("media.delete", "success", { entityId: id });
 }

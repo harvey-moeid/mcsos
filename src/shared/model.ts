@@ -22,6 +22,7 @@ export const statusSchema = z.enum([
   "published",
   "failed",
   "uncertain",
+  "pending_approval", "approved", "ready_for_manual_publish", "awaiting_verification", "cancelled", "unsupported",
 ]);
 export type DraftStatus = z.infer<typeof statusSchema>;
 export interface Account {
@@ -39,6 +40,10 @@ export interface Account {
   demo?: boolean;
   avatar?: string;
   browser?: BrowserBinding;
+  tiktok?: import("./tiktok").TikTokIdentity;
+  identityRevision?: number;
+  groups?: string[];
+  labels?: string[];
 }
 export interface Tokens {
   accessToken: string;
@@ -48,6 +53,7 @@ export interface Tokens {
   userAccessToken?: string;
 }
 export interface Media {
+  accountId?: string;
   id: string;
   key: string;
   filename: string;
@@ -61,7 +67,10 @@ export interface Media {
   previewUrl?: string;
 }
 export const draftInput = z.object({
-  account_id: z.string().min(1),
+  account_id: z.string().regex(/^[\w-]{1,100}$/),
+  expected_revision: z.number().int().positive().optional(),
+  notes: z.string().max(5000).default(""),
+  ai_generated: z.boolean().default(false),
   kind: kindSchema.default("post"),
   caption: z.string().max(2200).default(""),
   media_ids: z.array(z.string()).max(10).default([]),
@@ -90,6 +99,12 @@ export type DraftInput = z.infer<typeof draftInput>;
 export interface Draft {
   id: string;
   accountId: string;
+  notes?: string;
+  aiGenerated?: boolean;
+  approval?: import("./tiktok").TikTokApproval;
+  publication?: import("./tiktok").PublicationEvidence;
+  handoffId?: string;
+  handoffAt?: string;
   kind: z.infer<typeof kindSchema>;
   caption: string;
   mediaIds: string[];

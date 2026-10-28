@@ -53,6 +53,16 @@ export class Store {
     }
     return { items, cursor: l.truncated ? l.cursor : undefined };
   }
+  async locked<T>(name: string, work: () => Promise<T>): Promise<T> {
+    const key = `mutation-locks/${name}.json`;
+    const token = crypto.randomUUID();
+    if (!(await this.create(key, { token, at: new Date().toISOString() })))
+      throw new AppError(409, "Operasi bersamaan sedang berjalan. Muat ulang; bila tetap terkunci, periksa recovery lock.", "conflict");
+    try { return await work(); } finally {
+      const current = await this.get<{ token: string }>(key);
+      if (current?.value.token === token) await this.bucket.delete(key);
+    }
+  }
   async accounts() {
     return (await this.list<Account>("accounts/", undefined, 25)).items;
   }

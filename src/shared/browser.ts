@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Platform } from "./model";
-export const executionMethodSchema = z.enum(["api", "browser"]);
+export const executionMethodSchema = z.enum(["api", "browser", "manual"]);
 export type ExecutionMethod = z.infer<typeof executionMethodSchema>;
 export interface BrowserBinding {
   expectedUsername?: string;

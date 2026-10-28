@@ -17,6 +17,7 @@ export async function research(
   args: Record<string, unknown>,
 ) {
   const account = await service.account(String(args.account_id));
+  if (account.platform === "tiktok") throw new AppError(403, "unsupported: riset otomatis TikTok tidak diaktifkan. Gunakan input manual berizin.");
   const username = String(args.username || ""),
     tag = String(args.hashtag || "");
   if (username && !/^[\w.]{1,40}$/.test(username))

@@ -33,6 +33,7 @@ export async function ownerSession(req: Request, env: RuntimeEnv) {
     !(await verify(`${id}.${expires}.${csrf}`, sig || "", env.SESSION_SECRET))
   )
     return null;
+  if (await new Store(env.DATA).get(`session-revoked/${await digest(token)}.json`)) return null;
   return { id, csrf };
 }
 export async function requireOwner(req: Request, env: RuntimeEnv) {
@@ -115,6 +116,7 @@ export async function authRoute(
     path = u.pathname;
   if (path === "/auth/logout" && req.method === "POST") {
     await requireOwner(req, env);
+    await new Store(env.DATA).put(`session-revoked/${await digest(cookie(req, cookieName(env)))}.json`, { at: new Date().toISOString() });
     return Response.json(
       { ok: true },
       { headers: { "Set-Cookie": sessionCookie(env, "", 0) } },
