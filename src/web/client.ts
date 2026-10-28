@@ -5,15 +5,25 @@ export async function request<T>(
   method = "GET",
   body?: unknown,
 ): Promise<T> {
-  const r = await fetch(path, {
-    method,
-    credentials: "same-origin",
-    headers: {
-      ...(body ? { "Content-Type": "application/json" } : {}),
-      ...(csrf ? { "X-CSRF-Token": csrf } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let r: Response;
+  try {
+    r = await fetch(path, {
+      method,
+      credentials: "same-origin",
+      headers: {
+        ...(body ? { "Content-Type": "application/json" } : {}),
+        ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(30000),
+    });
+  } catch {
+    throw new Error(
+      "Jaringan lambat atau terputus. Muat ulang untuk memeriksa hasil sebelum mengulang aksi.",
+    );
+  }
+  if (r.status === 401)
+    throw new Error("Sesi dashboard kedaluwarsa. Login ulang dengan GitHub.");
   const data = (await r.json()) as T & { error?: string };
   if (!r.ok) throw new Error(data.error || "Permintaan gagal.");
   return data;
@@ -22,14 +32,14 @@ export const getWorkspace = () => request<Workspace>("/api/workspace");
 export async function inspectFile(file: File) {
   const url = URL.createObjectURL(file);
   try {
-    if (file.type === "image/jpeg") {
+    if (["image/jpeg", "image/webp", "image/png"].includes(file.type)) {
       const image = new Image();
       image.src = url;
       await image.decode();
       return { width: image.naturalWidth, height: image.naturalHeight };
     }
     if (!["video/mp4", "video/quicktime"].includes(file.type))
-      throw new Error("Pilih JPEG, MP4 atau MOV.");
+      throw new Error("Pilih JPEG, PNG, WEBP, MP4 atau MOV.");
     const v = document.createElement("video");
     v.preload = "metadata";
     v.src = url;
@@ -46,6 +56,7 @@ export async function uploadFile(
   file: File,
   csrf: string,
   onProgress: (n: number) => void,
+  accountId?: string,
 ): Promise<Media> {
   const meta = await inspectFile(file);
   const init = await request<{
@@ -54,6 +65,7 @@ export async function uploadFile(
     partSize: number;
     url?: string;
   }>("/api/media/initiate", csrf, "POST", {
+    account_id: accountId,
     filename: file.name,
     mime: file.type,
     size: file.size,

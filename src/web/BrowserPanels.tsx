@@ -202,6 +202,12 @@ export function BrowserSettings({
                   onDemoVerify();
                   return;
                 }
+                if (account.platform === "tiktok") {
+                  onNotify(
+                    "Tutup sesi login lalu gunakan Verifikasi identitas / health check pada kartu akun TikTok.",
+                  );
+                  return;
+                }
                 const j = await request<PublicJob>(
                   `/api/browser/accounts/${account.id}/probe`,
                   workspace.csrf,
@@ -216,7 +222,9 @@ export function BrowserSettings({
             }
           >
             <ShieldCheck size={15} />
-            Periksa identitas
+            {account.platform === "tiktok"
+              ? "Panduan verifikasi identitas"
+              : "Periksa identitas"}
           </button>
         </div>
         {login && (
@@ -261,6 +269,26 @@ export function BrowserSettings({
           <div className="browser-login" key={l.id}>
             <strong>Sesi {l.status}</strong>
             <small>ID: {l.id}</small>
+            {l.status === "active" && (
+              <button
+                className="button"
+                disabled={busy}
+                onClick={() =>
+                  void act(async () => {
+                    setLogin(
+                      await request(
+                        `/api/browser/accounts/${account.id}/login-resume`,
+                        workspace.csrf,
+                        "POST",
+                        { login_id: l.id },
+                      ),
+                    );
+                  })
+                }
+              >
+                Pulihkan live browser
+              </button>
+            )}
             {!l.browserId && (
               <label className="field">
                 ID browser dari Cloud (pemulihan)
@@ -352,7 +380,6 @@ export function BrowserAccountForm({
         Platform
         <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
           <option value="instagram">Instagram</option>
-          <option value="tiktok">TikTok</option>
         </select>
       </label>
       <label className="field">
@@ -483,11 +510,13 @@ export function BrowserJobs({
               value={account}
               onChange={(e) => setAccount(e.target.value)}
             >
-              {workspace.accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.label} · {a.platform}
-                </option>
-              ))}
+              {workspace.accounts
+                .filter((a) => a.platform === "instagram")
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label} · {a.platform}
+                  </option>
+                ))}
             </select>
           </label>
           <label className="field">
