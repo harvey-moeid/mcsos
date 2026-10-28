@@ -7,3 +7,7 @@ dist/
 coverage/
 *.zip
 work/
+
+playwright-report/
+test-results/
+wrangler.staging.local.jsonc

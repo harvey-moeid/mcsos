@@ -1,0 +1,57 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "social-mcp-staging",
+  "workers_dev": true,
+  "preview_urls": false,
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-10-13",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  "r2_buckets": [
+    {
+      "binding": "DATA",
+      "bucket_name": "social-mcp-data-staging"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV"
+    },
+    {
+      "binding": "CACHE"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "PUBLIC_ORIGIN": "https://staging.example.invalid",
+    "OWNER_GITHUB_ID": "222858980",
+    "META_API_VERSION": "v25.0",
+    "SCRAPING_ENABLED": "false",
+    "R2_BUCKET_NAME": "social-mcp-data-staging",
+    "ENVIRONMENT": "staging",
+    "BROWSER_USE_ENABLED": "false",
+    "BROWSER_USE_MAX_COST_USD": "0.50",
+    "BROWSER_USE_MAX_RUNS_PER_DAY": "20",
+    "TIKTOK_SESSION_ENABLED": "false",
+    "TIKTOK_CONTENT_STUDIO_ENABLED": "false",
+    "TIKTOK_ANALYTICS_ENABLED": "false",
+    "TIKTOK_BROWSER_PUBLISH_ENABLED": "false",
+    "AI_CONTENT_ENABLED": "false",
+    "AI_PROVIDER": "none",
+    "AI_MODEL": "",
+    "AI_MAX_REQUESTS_PER_DAY": "20",
+    "AI_MAX_OUTPUT_TOKENS": "2048"
+  },
+  "routes": []
+}
