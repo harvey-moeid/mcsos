@@ -1,10 +1,11 @@
 import {
   OAuthProvider,
+  AuthorizationError,
   type OAuthResourceContext,
 } from "@cloudflare/workers-oauth-provider";
 import { z } from "zod";
 import { ownerApi } from "./owner-api";
-import { authRoute, type AuthEnv } from "./auth";
+import { authRoute, authorizationErrorPage, type AuthEnv } from "./auth";
 import { connectRoute, facebookConnect } from "./connections";
 import { mcpFetch } from "./mcp";
 import { AppError } from "./store";
@@ -84,6 +85,11 @@ const defaultHandler: ExportedHandler<RuntimeEnv> = {
 };
 export default {
   async fetch(req: Request, env: RuntimeEnv, ctx: ExecutionContext) {
+    // Only the small consent form needs a copy for error recovery after parsing.
+    const recoveryRequest =
+      new URL(req.url).pathname === "/authorize" && req.method === "POST"
+        ? req.clone()
+        : req;
     try {
       if (new URL(req.url).origin !== env.PUBLIC_ORIGIN)
         throw new AppError(400, "Host tidak sesuai PUBLIC_ORIGIN.");
@@ -125,6 +131,10 @@ export default {
         response.headers.set("Cache-Control", "no-store");
       return response;
     } catch (e) {
+      if (e instanceof AuthorizationError) {
+        if (e.redirectTo) return Response.redirect(e.redirectTo, 302);
+        return authorizationErrorPage(recoveryRequest);
+      }
       if (e instanceof z.ZodError)
         return Response.json(
           {

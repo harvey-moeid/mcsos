@@ -3,6 +3,8 @@
 | Gejala | Pemeriksaan / tindakan |
 | --- | --- |
 | 401 / sesi kedaluwarsa | Login ulang GitHub owner; logout lama mencabut cookie server |
+| Tombol persetujuan MCP berhenti sebelum GitHub | Pastikan CSP halaman /authorize hanya satu; form-action harus mengizinkan GitHub dan origin callback klien yang sudah divalidasi. Build terbaru memiliki tes Chromium desktop/Android untuk pengalihan Izinkan dan Tolak |
+| Mulai ulang otorisasi / HTTP 400 | Persetujuan kedaluwarsa, sudah digunakan, atau cookie browser tidak cocok. Klik Mulai ulang login untuk membuka persetujuan baru; bila tautan tidak tersedia, mulai koneksi ulang dari ChatGPT/klien. Jangan kirim ulang form lama |
 | 403 CSRF | PUBLIC_ORIGIN, origin browser, cookie dan X-CSRF-Token harus cocok; jangan memakai host proxy berbeda |
 | Fitur belum aktif | Periksa flag sesuai CONFIGURATION.md; default produksi semua fitur baru false |
 | login_required | Login ulang secara manual dan catat verifikasi handle aktif; validity 24 jam |

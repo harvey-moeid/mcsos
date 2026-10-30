@@ -37,6 +37,8 @@ const config = {
     AI_MAX_REQUESTS_PER_DAY: "20",
     AI_MAX_OUTPUT_TOKENS: "2048",
     SESSION_SECRET: "ui-test-only-secret-with-at-least-32-bytes",
+    GITHUB_CLIENT_ID: "local-oauth-test-client",
+    GITHUB_CLIENT_SECRET: "local-oauth-test-secret",
   },
   serviceBindings: {
     ASSETS: async (req) => {
