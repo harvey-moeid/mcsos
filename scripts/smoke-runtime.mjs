@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { resolve, dirname } from "node:path";
 const require = createRequire(import.meta.url);
 // Use the exact Miniflare/runtime that this pinned Wrangler release ships.
@@ -37,6 +37,8 @@ const config = {
     BROWSER_USE_MAX_COST_USD: "0.50",
     BROWSER_USE_MAX_RUNS_PER_DAY: "20",
     SESSION_SECRET: sessionSecret,
+    GITHUB_CLIENT_ID: "runtime-oauth-test-client",
+    GITHUB_CLIENT_SECRET: "runtime-oauth-test-secret",
   },
   serviceBindings: {
     ASSETS: () =>
@@ -54,7 +56,10 @@ function signature(payload) {
     .digest("base64url");
 }
 async function check(path, status, options) {
-  const r = await mf.dispatchFetch(origin + path, options);
+  const r = await mf.dispatchFetch(origin + path, {
+    ...options,
+    redirect: "manual",
+  });
   if (r.status !== status)
     throw new Error(
       `${path}: expected ${status}, got ${r.status}; ${await r.text()}`,
@@ -76,6 +81,140 @@ try {
     throw new Error("Missing MCP auth challenge");
   await check("/.well-known/oauth-authorization-server", 200);
   await check("/.well-known/oauth-protected-resource/mcp", 200);
+  const redirectUri = "https://client.example/oauth/callback";
+  const registration = await check("/oauth/register", 201, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_name: "Isolated OAuth regression test",
+      redirect_uris: [redirectUri],
+      token_endpoint_auth_method: "none",
+      grant_types: ["authorization_code"],
+      response_types: ["code"],
+    }),
+  });
+  const client = await registration.json();
+  const authorizePath =
+    "/authorize?" +
+    new URLSearchParams({
+      client_id: client.client_id,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "mcp:read",
+      state: crypto.randomUUID(),
+      code_challenge: "a".repeat(43),
+      code_challenge_method: "S256",
+      resource: origin + "/mcp",
+    });
+  async function consentForm() {
+    const response = await check(authorizePath, 200);
+    const csp = response.headers.get("content-security-policy");
+    if (
+      !csp.includes(
+        "form-action 'self' https://github.com https://client.example",
+      ) ||
+      csp.includes(",")
+    )
+      throw new Error(
+        "Consent CSP must be a single policy allowing only validated OAuth destinations",
+      );
+    const body = await response.text();
+    const handle = body.match(/name="handle" value="([^"]+)"/)?.[1];
+    if (!handle) throw new Error("Consent handle missing");
+    const cookie = response.headers
+      .getSetCookie()
+      .map((v) => v.split(";")[0])
+      .join("; ");
+    return { handle, cookie };
+  }
+  const form = await consentForm();
+  const consentOptions = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Cookie: form.cookie,
+    },
+    body: new URLSearchParams({
+      handle: form.handle,
+      restart: authorizePath,
+      decision: "allow",
+    }).toString(),
+  };
+  const allowed = await check("/authorize", 302, consentOptions);
+  const github = new URL(allowed.headers.get("location"));
+  if (
+    github.origin !== "https://github.com" ||
+    github.searchParams.get("redirect_uri") !== origin + "/auth/github/callback"
+  )
+    throw new Error(
+      "Consent did not redirect to GitHub with the correct callback",
+    );
+  const reused = await check("/authorize", 400, consentOptions);
+  const recovery = await reused.text();
+  if (
+    !recovery.includes("Mulai ulang login") ||
+    recovery.includes("Permintaan gagal.")
+  )
+    throw new Error(
+      "A used consent must offer a safe restart instead of a server error",
+    );
+  const unbound = await check("/authorize", 400, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      handle: form.handle,
+      decision: "allow",
+      restart: "https://evil.example/authorize?x=1",
+    }),
+  });
+  const unboundBody = await unbound.text();
+  if (
+    unboundBody.includes("evil.example") ||
+    unboundBody.includes("Mulai ulang login")
+  )
+    throw new Error("Recovery must not trust an external restart URL");
+  const expiredForm = await consentForm();
+  // Simulate the provider's KV TTL removing an otherwise correctly bound form.
+  const oauthKV = await mf.getKVNamespace("OAUTH_KV");
+  await oauthKV.delete(
+    "transaction:" +
+      createHash("sha256").update(expiredForm.handle).digest("hex"),
+  );
+  const expired = await check("/authorize", 400, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Cookie: expiredForm.cookie,
+    },
+    body: new URLSearchParams({
+      handle: expiredForm.handle,
+      restart: authorizePath,
+      decision: "allow",
+    }),
+  });
+  if (!(await expired.text()).includes("Mulai ulang login"))
+    throw new Error("Expired consent must offer a safe restart");
+  const deniedForm = await consentForm();
+  const denied = await check("/authorize", 302, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Cookie: deniedForm.cookie,
+    },
+    body: new URLSearchParams({ handle: deniedForm.handle, decision: "deny" }),
+  });
+  const callback = new URL(denied.headers.get("location"));
+  if (
+    callback.origin !== new URL(redirectUri).origin ||
+    callback.searchParams.get("error") !== "access_denied"
+  )
+    throw new Error(
+      "Deny must redirect to the registered client with access_denied",
+    );
+  await check("/auth/github/callback", 400);
+  console.log(
+    "OAuth consent redirects, one-use handles, cookie binding, and restart validation passed (isolated storage, no external login).",
+  );
   const wrong = await mf.dispatchFetch("https://evil.example/api/workspace");
   if (wrong.status !== 400) throw new Error("Host validation failed");
   console.log("Host validation → 400");

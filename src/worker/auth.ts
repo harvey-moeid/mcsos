@@ -33,7 +33,10 @@ export async function ownerSession(req: Request, env: RuntimeEnv) {
     !(await verify(`${id}.${expires}.${csrf}`, sig || "", env.SESSION_SECRET))
   )
     return null;
-  if (await new Store(env.DATA).get(`session-revoked/${await digest(token)}.json`)) return null;
+  if (
+    await new Store(env.DATA).get(`session-revoked/${await digest(token)}.json`)
+  )
+    return null;
   return { id, csrf };
 }
 export async function requireOwner(req: Request, env: RuntimeEnv) {
@@ -93,19 +96,54 @@ async function githubUser(req: Request, env: RuntimeEnv) {
     throw new AppError(403, "Identitas ini bukan pemilik workspace.");
   return String(u.id);
 }
-function html(body: string, headers: HeadersInit = {}) {
+function html(
+  body: string,
+  headers: HeadersInit = {},
+  formOrigins: string[] = [],
+  status = 200,
+) {
+  // Set headers case-insensitively and preserve the provider's binding cookies.
+  // Chrome also applies form-action to redirects after the consent POST.
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("Content-Type", "text/html;charset=UTF-8");
+  responseHeaders.set(
+    "Content-Security-Policy",
+    `default-src 'none'; style-src 'unsafe-inline'; form-action 'self' ${formOrigins.join(" ")}; frame-ancestors 'none'; base-uri 'none'`,
+  );
+  responseHeaders.set("Cache-Control", "no-store");
+  responseHeaders.set("X-Frame-Options", "DENY");
   return new Response(
     `<!doctype html><html lang="id"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Social MCP · Otorisasi</title><body style="font:16px system-ui;max-width:600px;margin:10vh auto;padding:24px;background:#111716;color:#eef3ef">${body}</body></html>`,
     {
-      headers: {
-        "Content-Type": "text/html;charset=UTF-8",
-        "Content-Security-Policy":
-          "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
-        "Cache-Control": "no-store",
-        "X-Frame-Options": "DENY",
-        ...Object.fromEntries(new Headers(headers)),
-      },
+      status,
+      headers: responseHeaders,
     },
+  );
+}
+export async function authorizationErrorPage(
+  req: Pick<Request, "url" | "method" | "formData">,
+) {
+  let restart = "";
+  if (new URL(req.url).pathname === "/authorize" && req.method === "POST") {
+    try {
+      const value = (await req.formData()).get("restart");
+      if (typeof value === "string" && value.startsWith("/authorize?")) {
+        const url = new URL(value, req.url);
+        if (
+          url.origin === new URL(req.url).origin &&
+          url.pathname === "/authorize"
+        )
+          restart = url.pathname + url.search;
+      }
+    } catch {
+      // A malformed form must still render a safe recovery page.
+    }
+  }
+  return html(
+    `<h1>Mulai ulang otorisasi</h1><p>Permintaan login tidak valid, kedaluwarsa, atau sudah digunakan. Tidak ada akses baru yang diberikan oleh permintaan ini.</p>${restart ? `<p><a href="${escapeHtml(restart)}">Mulai ulang login</a></p>` : '<p>Kembali ke ChatGPT atau aplikasi klien, lalu hubungkan plugin lagi.</p><p><a href="/">Buka dashboard</a></p>'}`,
+    {},
+    [],
+    400,
   );
 }
 export async function authRoute(
@@ -116,14 +154,21 @@ export async function authRoute(
     path = u.pathname;
   if (path === "/auth/logout" && req.method === "POST") {
     await requireOwner(req, env);
-    await new Store(env.DATA).put(`session-revoked/${await digest(cookie(req, cookieName(env)))}.json`, { at: new Date().toISOString() });
+    await new Store(env.DATA).put(
+      `session-revoked/${await digest(cookie(req, cookieName(env)))}.json`,
+      { at: new Date().toISOString() },
+    );
     return Response.json(
       { ok: true },
       { headers: { "Set-Cookie": sessionCookie(env, "", 0) } },
     );
   }
   if (path === "/auth/login" && req.method === "GET") {
-    if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET || !env.SESSION_SECRET)
+    if (
+      !env.GITHUB_CLIENT_ID ||
+      !env.GITHUB_CLIENT_SECRET ||
+      !env.SESSION_SECRET
+    )
       throw new AppError(503, "GitHub OAuth belum dikonfigurasi.");
     const state = crypto.randomUUID(),
       binding = crypto.randomUUID();
@@ -143,8 +188,10 @@ export async function authRoute(
       const client = await env.OAUTH_PROVIDER.lookupClient(original.clientId);
       const consent = await env.OAUTH_PROVIDER.beginConsent(original);
       return html(
-        `<h1>Hubungkan klien AI</h1><p>Klien: <strong>${escapeHtml(client?.clientName || original.clientId)}</strong></p><p>Tujuan: ${escapeHtml(original.redirectUri)}</p><p>Akses akun, analitik, media, dan draft. Klien tidak dapat menyetujui atau mempublikasikan konten.</p><form method="POST" action="/authorize"><input type="hidden" name="handle" value="${escapeHtml(consent.handle)}"><button name="decision" value="allow">Izinkan dan login GitHub</button> <button name="decision" value="deny">Tolak</button></form>`,
+        `<h1>Hubungkan klien AI</h1><p>Klien: <strong>${escapeHtml(client?.clientName || original.clientId)}</strong></p><p>Tujuan: ${escapeHtml(original.redirectUri)}</p><p>Akses akun, analitik, media, dan draft. Klien tidak dapat menyetujui atau mempublikasikan konten.</p><form method="POST" action="/authorize"><input type="hidden" name="handle" value="${escapeHtml(consent.handle)}"><input type="hidden" name="restart" value="${escapeHtml(path + u.search)}"><button name="decision" value="allow">Izinkan dan login GitHub</button> <button name="decision" value="deny">Tolak</button></form>`,
         consent.headers,
+        // parseAuthRequest already validated this exact client redirect URI.
+        ["https://github.com", new URL(original.redirectUri).origin],
       );
     }
     if (req.method === "POST") {
