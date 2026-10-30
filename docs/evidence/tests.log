@@ -1,0 +1,181 @@
+
+> social-mcp@2.0.0 test
+> vitest run tests --reporter=verbose
+
+
+ RUN  v5.0.4 /workspace/mcsos
+
+ ✓ tests/tiktok.test.ts > TikTok account and identity isolation > requires lawful management assertion, validates handles and avoids demo data 8ms
+ ✓ tests/tiktok.test.ts > TikTok account and identity isolation > rejects duplicate accounts and caps concurrent creation with a conditional lock 2ms
+ ✓ tests/tiktok.test.ts > TikTok account and identity isolation > cannot claim another username or approve unverified/expired identity 8ms
+ ✓ tests/tiktok.test.ts > TikTok account and identity isolation > isolates media and draft operations across account switching 3ms
+ ✓ tests/tiktok.test.ts > TikTok account and identity isolation > disconnect erases local references and invalidates existing approvals 7ms
+ ✓ tests/tiktok.test.ts > TikTok account and identity isolation > never exposes encrypted profile in safe account metadata 1ms
+ ✓ tests/tiktok.test.ts > TikTok account and identity isolation > reserves each profile atomically under concurrent account binding 14ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > supports drafts and history with expected revision conflict protection 3ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > validates required media and unsupported controls 2ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > fingerprints all material data including R2 media version 4ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > invalidates approval after reset/edit and prevents MCP editing locked drafts 3ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > rejects unseen revision, owner mismatch and old schedule 2ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > creates pending approval and schedule without dispatch 4ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > processes due content manually using ETag without publishing or duplicates 4ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > handoff idempotency rejects duplicate IDs and cross-account races 6ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > does not mark published until owner provides exact account URL 7ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > uncertain outcome blocks a second handoff and can only be reconciled 4ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > all unsupported transitions are rejected 1ms
+ ✓ tests/tiktok.test.ts > TikTok revision bound approval and manual workflow > media referenced in history cannot be deleted 1ms
+ ✓ tests/tiktok.test.ts > Session-first provider and capability security > never dispatches a TikTok browser agent even if publish flag enabled 1ms
+ ✓ tests/tiktok.test.ts > Session-first provider and capability security > disables provider CAPTCHA solver and recording on manual login 17ms
+ ✓ tests/tiktok.test.ts > Session-first provider and capability security > recovering expired session marks login_required, without restarting provider 3ms
+ ✓ tests/tiktok.test.ts > Session-first provider and capability security > rejects SSRF and mismatched post URLs 1ms
+ ✓ tests/tiktok.test.ts > Analytics and media validation > stores null for unavailable data and truthful provenance 2ms
+ ✓ tests/tiktok.test.ts > Analytics and media validation > does not allow fabricated official provenance or unconfirmed content metrics 1ms
+ ✓ tests/tiktok.test.ts > Analytics and media validation > validates PNG/WEBP header dimensions without client metadata 1ms
+ ✓ tests/tiktok.test.ts > AI provider adapter > fails clearly when disabled; manual drafts still work 1ms
+ ✓ tests/tiktok.test.ts > AI provider adapter > validates AI schema and rejects extra keys and hallucinated metrics fields 5ms
+ ✓ tests/tiktok.test.ts > AI provider adapter > uses bounded official provider requests and never returns keys 2ms
+ ✓ tests/tiktok.test.ts > AI provider adapter > rejects malformed AI output without a success fallback 1ms
+ ✓ tests/tiktok.test.ts > AI provider adapter > enforces shared daily request limits and leaves prompt injection as data 2ms
+ ✓ tests/tiktok.test.ts > Owner API, CSRF, MCP and secrets > requires owner session for every TikTok API and rejects CSRF 10ms
+ ✓ tests/tiktok.test.ts > Owner API, CSRF, MCP and secrets > runs the real owner draft/approval/schedule endpoints 12ms
+ ✓ tests/tiktok.test.ts > Owner API, CSRF, MCP and secrets > rejects account-switching IDOR at HTTP boundary 3ms
+ ✓ tests/tiktok.test.ts > Owner API, CSRF, MCP and secrets > MCP draft scope cannot approve or leak provider secrets 32ms
+ ✓ tests/tiktok.test.ts > Owner API, CSRF, MCP and secrets > logout revokes replayed owner cookie 6ms
+ ✓ tests/tiktok.test.ts > Account queue guard and additional provider failure checks > allows account B to prepare independently while A has an active handoff 15ms
+ ✓ tests/tiktok.test.ts > Account queue guard and additional provider failure checks > releases account handoff only after terminal owner reconciliation 5ms
+ ✓ tests/tiktok.test.ts > Account queue guard and additional provider failure checks > Gemini uses server API-key headers and validates STOP output 2ms
+ ✓ tests/tiktok.test.ts > Account queue guard and additional provider failure checks > does not retry ambiguous AI failures or expose provider body 1ms
+ ✓ tests/tiktok.test.ts > R2 direct media integration > signs an account-scoped upload, inspects actual PNG bytes and persists metadata 28ms
+ ✓ tests/tiktok.test.ts > Migration and default security gates > lets the owner correct a legacy display name to a real handle and invalidates identity 2ms
+ ✓ tests/tiktok.test.ts > Migration and default security gates > refuses bypassing lawful account assertion through generic browser account creation 1ms
+ ✓ tests/tiktok.test.ts > Migration and default security gates > enforces API/MCP rate counters with conditional writes 0ms
+ ✓ tests/tiktok.test.ts > Migration and default security gates > uses a dedicated TikTok approval endpoint instead of legacy route smuggling 3ms
+ ✓ tests/tiktok.test.ts > MCP authorized TikTok surface > creates, lists, updates and reads TikTok drafts over tools/call without approval tools 28ms
+ ✓ tests/ui.test.tsx > dashboard demo workflows > shows explicit demo label, approval inbox and token warning 567ms
+ ✓ tests/ui.test.tsx > dashboard demo workflows > creates a draft without publishing or contacting a platform 821ms
+ ✓ tests/ui.test.tsx > dashboard demo workflows > requires explicit review checkbox before approval 409ms
+ ✓ tests/ui.test.tsx > dashboard demo workflows > bulk selection appears only on comment replies 265ms
+ ✓ tests/ui.test.tsx > dashboard demo workflows > navigates between all six real dashboard views 894ms
+ ✓ tests/ui.test.tsx > dashboard demo workflows > turns a calendar idea into a new draft instead of PATCHing an empty ID 534ms
+ ✓ tests/ui.test.tsx > dashboard demo workflows > supports light/dark/system theme settings 311ms
+ ✓ tests/ui.test.tsx > browser option in the dashboard > connects and simulates verification without opening a real browser 1159ms
+ ✓ tests/ui.test.tsx > browser option in the dashboard > browser read UI accepts fixed operation types and exposes no free-form task input 299ms
+ ✓ tests/ui.test.tsx > browser option in the dashboard > approval route defaults to the official API and an unavailable browser option is disabled 256ms
+ ✓ tests/browser.test.ts > profile binding and approval > never exposes profile IDs, encrypted profile data, or login capability through MCP account metadata 12ms
+ ✓ tests/browser.test.ts > profile binding and approval > keeps execution selection unavailable to draft creation 5ms
+ ✓ tests/browser.test.ts > profile binding and approval > requires explicit owner consent for browser approval 4ms
+ ✓ tests/browser.test.ts > profile binding and approval > requires verified browser identity before approval 2ms
+ ✓ tests/browser.test.ts > profile binding and approval > supports explicit browser approval on a browser-only account without pretending API token exists 2ms
+ ✓ tests/browser.test.ts > profile binding and approval > rejects TikTok studio when feature disabled and always blocks agent approval 2ms
+ ✓ tests/browser.test.ts > profile binding and approval > invalidates the old approval binding when profile settings change 20ms
+ ✓ tests/browser.test.ts > profile binding and approval > prevents sharing an enabled profile across accounts 19ms
+ ✓ tests/browser.test.ts > profile binding and approval > browser replies require exact target identity and safe URL 5ms
+ ✓ tests/browser.test.ts > cloud transport contract > uses the documented V4 endpoint/header and bounded run cost without passing credentials to the agent 26ms
+ ✓ tests/browser.test.ts > cloud transport contract > classifies POST timeouts and malformed successful responses as ambiguous 3ms
+ ✓ tests/browser.test.ts > cloud transport contract > honors provider Retry-After on throttling 2ms
+ ✓ tests/browser.test.ts > cloud transport contract > feature-off blocks new work while status/stop remain available for cleanup 1ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > dispatches a given approved revision only once 7ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > concurrent requests cannot run two agents on one profile 3ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > a missing create response never triggers automatic redispatch 5ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > a definite create rejection releases profile lease without retrying a public action 4ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > limits daily starts using conditional writes during concurrency 1ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > recovers only the exact task contract, not an unrelated run UUID 3ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > keeps an active profile locked until provider completion and browser stop 2ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > successful agent action is held for independent owner review 16ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > failed public runs remain uncertain rather than blindly retried 5ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > invalid receipt hash or account cannot mark a probe verified 3ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > marks blocked/login sessions and never automates challenge bypass 4ms
+ ✓ tests/browser.test.ts > dispatch ledger, leases, and uncertain outcomes > cleanup errors retain lease and surface cleanupPending 4ms
+ ✓ tests/browser.test.ts > read capability boundaries > accepts only the enumerated read jobs, never a free-form action task 4ms
+ ✓ tests/browser.test.ts > read capability boundaries > job prompt forbids public mutations and treats page content as data 3ms
+ ✓ tests/browser.test.ts > read capability boundaries > returns explicitly sourced statistics without estimating missing numbers 13ms
+ ✓ tests/browser.test.ts > read capability boundaries > strips unknown fields including credential-like fields from returned data 4ms
+ ✓ tests/browser.test.ts > read capability boundaries > rejects external target URLs, credential URLs, and unsupported TikTok DMs 3ms
+ ✓ tests/browser.test.ts > publisher integration and owner result confirmation > dispatches through Browser Use only after route-specific approval and holds final status 16ms
+ ✓ tests/browser.test.ts > publisher integration and owner result confirmation > cannot confirm an unknown or still-running provider result 5ms
+ ✓ tests/browser.test.ts > publisher integration and owner result confirmation > approval binding cannot silently switch after API failure 3ms
+ ✓ tests/browser.test.ts > exact target validation > disallows lookalike hosts, credentials, non-HTTPS, and unrelated thread paths 1ms
+ ✓ tests/browser.test.ts > exact target validation > requires both author and original comment text before browser moderation 1ms
+ ✓ tests/browser.test.ts > login, recovery, and active-job maintenance > accepts a real browser handle independently from TikTok API display name 2ms
+ ✓ tests/browser.test.ts > login, recovery, and active-job maintenance > opens a manual login session and keeps its live URL encrypted and owner-side 5ms
+ ✓ tests/browser.test.ts > login, recovery, and active-job maintenance > cannot attach an unrelated browser session during login recovery 2ms
+ ✓ tests/browser.test.ts > login, recovery, and active-job maintenance > active pending queue avoids scanning historic completed jobs 4ms
+ ✓ tests/browser.test.ts > login, recovery, and active-job maintenance > old polls cannot overwrite a result already confirmed by the owner 6ms
+ ✓ tests/browser.test.ts > login, recovery, and active-job maintenance > a wrong logged-in account marks the binding as needing login instead of ready 4ms
+ ✓ tests/browser.test.ts > login, recovery, and active-job maintenance > manual closure of an unknown dispatch never causes redispatch 7ms
+ ✓ tests/browser.test.ts > bounded waiting and media > waits on a busy profile before dispatch without sending another public task 5ms
+ ✓ tests/browser.test.ts > bounded waiting and media > rejects oversized browser media before dispatch 1ms
+ ✓ tests/core.test.ts > approval boundaries > MCP draft creation cannot smuggle approval, status or provider IDs 9ms
+ ✓ tests/core.test.ts > approval boundaries > rejects approval of an unseen revision 3ms
+ ✓ tests/core.test.ts > approval boundaries > approval is bound to exact revision 2ms
+ ✓ tests/core.test.ts > approval boundaries > approved draft cannot be edited or deleted via MCP service 2ms
+ ✓ tests/core.test.ts > approval boundaries > cancel clears approval and increments revision 1ms
+ ✓ tests/core.test.ts > approval boundaries > cancel is refused once the draft transitions to publishing 1ms
+ ✓ tests/core.test.ts > approval boundaries > invalid media is rejected at approval 1ms
+ ✓ tests/core.test.ts > approval boundaries > expired accounts cannot approve 1ms
+ ✓ tests/core.test.ts > approval boundaries > target IDs cannot inject graph paths 2ms
+ ✓ tests/core.test.ts > approval boundaries > validates reply targets and empty messages 1ms
+ ✓ tests/core.test.ts > publisher concurrency and uncertain outcomes > overlapping cron runs call the provider once 3ms
+ ✓ tests/core.test.ts > publisher concurrency and uncertain outcomes > an unapproved marker never executes 1ms
+ ✓ tests/core.test.ts > publisher concurrency and uncertain outcomes > lost platform response becomes uncertain and is not retried 1ms
+ ✓ tests/core.test.ts > publisher concurrency and uncertain outcomes > crash between side effect and provider ID does not cause another publish 1ms
+ ✓ tests/core.test.ts > publisher concurrency and uncertain outcomes > Instagram publish occurs only after ready container and once 1ms
+ ✓ tests/core.test.ts > publisher concurrency and uncertain outcomes > an uncertain media_publish is never submitted a second time 1ms
+ ✓ tests/core.test.ts > publisher concurrency and uncertain outcomes > queue-before-approval race keeps a fresh marker for next cron 0ms
+ ✓ tests/core.test.ts > publisher concurrency and uncertain outcomes > future schedules are not executed 0ms
+ ✓ tests/core.test.ts > publisher concurrency and uncertain outcomes > optimistic writes reject stale ETags 1ms
+ ✓ tests/core.test.ts > encryption and dashboard authentication > encrypts tokens with randomized IVs and detects tampering 7ms
+ ✓ tests/core.test.ts > encryption and dashboard authentication > HMAC signatures are bound to the payload 2ms
+ ✓ tests/core.test.ts > encryption and dashboard authentication > dashboard mutation requires owner session, exact origin and CSRF 24ms
+ ✓ tests/core.test.ts > encryption and dashboard authentication > a signed session for another GitHub identity is rejected 1ms
+ ✓ tests/core.test.ts > encryption and dashboard authentication > invalid/missing sessions are denied 1ms
+ ✓ tests/core.test.ts > MCP protocol and tool surface > exposes all planned tools and no approval/publish tools 1ms
+ ✓ tests/core.test.ts > MCP protocol and tool surface > handles initialize over stateless Streamable HTTP 36ms
+ ✓ tests/core.test.ts > MCP protocol and tool surface > lists tools for a second stateless request 18ms
+ ✓ tests/core.test.ts > MCP protocol and tool surface > rejects another owner and untrusted origins before reading data 1ms
+ ✓ tests/core.test.ts > media checks > extracts dimensions from JPEG SOF without trusting client metadata 0ms
+ ✓ tests/core.test.ts > media checks > rejects arbitrary binary disguised as JPEG 0ms
+ ✓ tests/core.test.ts > media checks > rejects PNG and invalid IG aspect ratios 0ms
+ ✓ tests/core.test.ts > safe retries and lifecycle > retries a read-only transient failure before any public side effect 1ms
+ ✓ tests/core.test.ts > safe retries and lifecycle > preserves media and drafts during retention cleanup 11ms
+ ✓ tests/core.test.ts > upstream response redaction > removes tokens and signed pagination URLs recursively 1ms
+ ✓ tests/core.test.ts > publisher phase fencing > refuses a stale execution revision instead of overwriting a newer provider ID 1ms
+ ✓ tests/core.test.ts > publisher phase fencing > claims carousel advancement across invocations in different minutes 1ms
+ ✓ tests/core.test.ts > publisher phase fencing > poll deferral retains the owner schedule and moves queue readiness 1ms
+ ✓ tests/publisher-recovery.test.ts > dispatch recovery and cancellation > recovers legacy pre-dispatch locks without blocking later items or duplicating dispatch 27ms
+ ✓ tests/publisher-recovery.test.ts > dispatch recovery and cancellation > failed status writes do not exhaust the dispatch budget or strand drafts 4ms
+ ✓ tests/publisher-recovery.test.ts > dispatch recovery and cancellation > does not dispatch when the status write committed but its acknowledgement was lost 2ms
+ ✓ tests/publisher-recovery.test.ts > dispatch recovery and cancellation > allows cancellation of a scheduled draft with a legacy orphan lock 3ms
+ ✓ tests/publisher-recovery.test.ts > dispatch recovery and cancellation > does not dispatch if cancellation wins after the publisher reads the draft 2ms
+ ✓ tests/publisher-recovery.test.ts > dispatch recovery and cancellation > rejects a stale cancellation if dispatch wins after cancellation reads the draft 3ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > holds a comment reply with truncated JSON as uncertain without retrying 30ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > holds a comment reply with empty body as uncertain without retrying 7ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > holds a comment reply with oversized body as uncertain without retrying 2ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > holds a comment reply with non-object JSON as uncertain without retrying 2ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > holds a comment reply with JSON array as uncertain without retrying 1ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > holds a comment reply with missing action ID as uncertain without retrying 1ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > holds a comment reply with gateway HTML as uncertain without retrying 1ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > holds a comment reply with interrupted stream as uncertain without retrying 2ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > retries an unreadable polling response without repeating a public action 2ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > records malformed body from media_publish using the latest execution revision 2ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > records missing ID from media_publish using the latest execution revision 2ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > does not persist a fabricated provider ID after a successful response missing its ID 3ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > requires explicit confirmation of comment hide 1ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > requires explicit confirmation of comment delete 4ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > accepts a valid comment_reply confirmation 1ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > accepts a valid comment_moderation confirmation 1ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > checks the DM confirmation after verifying a recent inbound message (valid=true) 3ms
+ ✓ tests/publisher-recovery.test.ts > ambiguous platform responses > checks the DM confirmation after verifying a recent inbound message (valid=false) 2ms
+ ✓ tests/research.test.ts > official research capabilities > supports business discovery with Facebook Login and labels sources 15ms
+ ✓ tests/research.test.ts > official research capabilities > never describes hashtag top media as global trends 3ms
+ ✓ tests/research.test.ts > official research capabilities > unavailable permissions return capability errors instead of fabricated results 6ms
+ ✓ tests/research.test.ts > official research capabilities > rejects field-expansion injection in usernames 1ms
+
+ Test Files  6 passed (6)
+      Tests  165 passed (165)
+   Start at  23:14:35
+   Duration  10.63s (tests 67%, import 19%, environment 11%, transform 2%, worker 1%)
+
+    Isolate  6 workers spawned · ~360ms startup each (spawn + environment, per file)
+             at least ~1.80s faster with isolate: false — reuses workers across files instead of one per file
+

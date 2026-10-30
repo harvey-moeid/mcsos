@@ -1,6 +1,6 @@
 {
   "name": "social-mcp",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,13 +9,16 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "types": "wrangler types --include-runtime false --strict-vars false",
-    "test": "vitest run",
+    "test": "vitest run tests",
     "check": "npm run typecheck && npm test && vite build",
     "deploy": "npm run build && wrangler deploy",
     "preview": "vite preview --host 0.0.0.0",
     "setup:local": "node scripts/setup-local.mjs",
     "check:runtime": "npm run build && wrangler deploy --dry-run --outdir work/worker-build && node scripts/smoke-runtime.mjs",
-    "secrets:check": "node scripts/check-secrets.mjs"
+    "secrets:check": "node scripts/check-secrets.mjs",
+    "test:ui": "playwright test",
+    "check:artifacts": "node scripts/check-artifacts.mjs",
+    "smoke:staging": "node scripts/smoke-staging.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1150.0",
@@ -27,10 +30,11 @@
     "lucide-react": "1.56.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "3.25.76"
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20261013.1",
+    "@cloudflare/workers-types": "5.20261028.1",
+    "@playwright/test": "1.64.1",
     "@testing-library/react": "16.3.3",
     "@testing-library/user-event": "14.6.8",
     "@types/node": "26.6.5",
@@ -42,7 +46,7 @@
     "typescript": "7.0.2",
     "vite": "8.3.4",
     "vitest": "5.0.4",
-    "wrangler": "4.150.0"
+    "wrangler": "4.155.0"
   },
   "engines": {
     "node": ">=24"

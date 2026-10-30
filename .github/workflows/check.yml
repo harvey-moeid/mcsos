@@ -1,8 +1,15 @@
 name: Checks
 on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      WRANGLER_SEND_METRICS: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -11,8 +18,23 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run secrets:check
+      - run: npm audit --audit-level=moderate
       - run: npm run check
       - run: npx wrangler types --check --include-runtime false --strict-vars false
       - run: npm run check:runtime
-        env:
-          WRANGLER_SEND_METRICS: "false"
+      - run: npx wrangler deploy --config wrangler.staging.jsonc --dry-run --outdir work/staging-build
+      - run: npm run check:artifacts
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validation-evidence
+          path: |
+            docs/evidence/
+            test-results/
+            dist/
+            work/worker-build/
+          retention-days: 14
+# Validation only. Cloudflare Builds existing remains the sole deployment system.
+# Production deployment requires owner approval after validation and staging smoke.

@@ -9,6 +9,8 @@ import type {
 import { open, seal } from "./crypto";
 import { AppError, Store } from "./store";
 export type Secrets = {
+  OPENROUTER_API_KEY: string;
+  GEMINI_API_KEY: string;
   BROWSER_USE_API_KEY: string;
   TOKEN_ENCRYPTION_KEY: string;
   SESSION_SECRET: string;

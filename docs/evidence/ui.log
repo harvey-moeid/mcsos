@@ -1,0 +1,30 @@
+
+> social-mcp@2.0.0 test:ui
+> playwright test
+
+[WebServer] (node:7149) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:7149) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:7165) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [desktop] › e2e/studio.spec.ts:36:1 › real owner API: account, manual draft, edit, approval, queue, handoff and evidence (7.4s)
+  ✓  2 [desktop] › e2e/studio.spec.ts:205:1 › empty, error, loading and session expiration are visible without false AI success (2.0s)
+  ✓  3 [desktop] › e2e/studio.spec.ts:229:1 › multi-file media upload UI tracks progress and surfaces provider failures (2.9s)
+  ✓  4 [desktop] › e2e/studio.spec.ts:322:1 › future schedule is stored in WIB and remains a manual queue (8.4s)
+(node:7394) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [android] › e2e/studio.spec.ts:36:1 › real owner API: account, manual draft, edit, approval, queue, handoff and evidence (26.9s)
+  ✓  6 [android] › e2e/studio.spec.ts:205:1 › empty, error, loading and session expiration are visible without false AI success (2.0s)
+  ✓  7 [android] › e2e/studio.spec.ts:229:1 › multi-file media upload UI tracks progress and surfaces provider failures (27.0s)
+  ✓  8 [android] › e2e/studio.spec.ts:322:1 › future schedule is stored in WIB and remains a manual queue (15.0s)
+
+  8 passed (1.6m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

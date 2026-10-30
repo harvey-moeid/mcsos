@@ -22,7 +22,15 @@ const config = {
     OWNER_GITHUB_ID: "42",
     META_API_VERSION: "v25.0",
     SCRAPING_ENABLED: "false",
-    TIKTOK_DIRECT_POST_ENABLED: "false",
+    TIKTOK_CONTENT_STUDIO_ENABLED: "true",
+    TIKTOK_ANALYTICS_ENABLED: "true",
+    TIKTOK_SESSION_ENABLED: "false",
+    TIKTOK_BROWSER_PUBLISH_ENABLED: "false",
+    AI_CONTENT_ENABLED: "false",
+    AI_PROVIDER: "none",
+    AI_MODEL: "",
+    AI_MAX_REQUESTS_PER_DAY: "20",
+    AI_MAX_OUTPUT_TOKENS: "2048",
     R2_BUCKET_NAME: "test",
     ENVIRONMENT: "test",
     BROWSER_USE_ENABLED: "false",
@@ -51,7 +59,7 @@ async function check(path, status, options) {
     throw new Error(
       `${path}: expected ${status}, got ${r.status}; ${await r.text()}`,
     );
-  console.log(`${path} → ${r.status}`);
+  console.log(`${path.split("?")[0]} → ${r.status}`);
   return r;
 }
 try {
@@ -153,6 +161,120 @@ try {
   )
     throw new Error("Range request failed");
   await check("/media/media/test/file.jpg?expires=1&sig=bad", 403);
+  const mutationHeaders = {
+    Cookie: cookie,
+    Origin: origin,
+    "X-CSRF-Token": "test-csrf",
+    "Content-Type": "application/json",
+  };
+  const post = (path, value, status = 200) =>
+    check(path, status, {
+      method: "POST",
+      headers: mutationHeaders,
+      body: JSON.stringify(value),
+    });
+  await check("/api/tiktok/config", 401);
+  await check("/api/tiktok/accounts", 403, {
+    method: "POST",
+    headers: { Cookie: cookie, "Content-Type": "application/json" },
+    body: "{}",
+  });
+  const ta = await (
+    await post(
+      "/api/tiktok/accounts",
+      { username: "runtime.owner", label: "Runtime", owned_or_managed: true },
+      201,
+    )
+  ).json();
+  await post(`/api/tiktok/accounts/${ta.id}/verify`, {
+    username: ta.username,
+    checked_identity: true,
+  });
+  await bucket.put(
+    "media-meta/runtime-image.json",
+    JSON.stringify({
+      id: "runtime-image",
+      accountId: ta.id,
+      key: "media/test/file.jpg",
+      filename: "test.jpg",
+      mime: "image/jpeg",
+      size: 10,
+      width: 1080,
+      height: 1920,
+      verified: true,
+      createdAt: new Date().toISOString(),
+    }),
+  );
+  const td = await (
+    await post(
+      "/api/drafts",
+      {
+        account_id: ta.id,
+        caption: "Persiapan runtime",
+        post_type: "photo",
+        media_ids: ["runtime-image"],
+      },
+      201,
+    )
+  ).json();
+  await post(`/api/tiktok/drafts/${td.id}/request-approval`, {
+    account_id: ta.id,
+    revision: 1,
+  });
+  await post(`/api/tiktok/drafts/${td.id}/approve`, {
+    account_id: ta.id,
+    revision: 1,
+    checked_content: true,
+    username: ta.username,
+  });
+  await post(`/api/tiktok/drafts/${td.id}/schedule`, { account_id: ta.id });
+  const requestId = crypto.randomUUID();
+  await post(`/api/tiktok/drafts/${td.id}/handoff`, {
+    account_id: ta.id,
+    revision: 1,
+    checked_account: true,
+    request_id: requestId,
+  });
+  await post(
+    `/api/tiktok/drafts/${td.id}/handoff`,
+    {
+      account_id: ta.id,
+      revision: 1,
+      checked_account: true,
+      request_id: crypto.randomUUID(),
+    },
+    409,
+  );
+  const stored = await (await bucket.get(`drafts/${td.id}.json`)).json();
+  if (stored.status !== "awaiting_verification" || stored.publication)
+    throw new Error("Handoff must never claim publication");
+  await post(`/api/tiktok/drafts/${td.id}/confirm`, {
+    account_id: ta.id,
+    revision: 1,
+    outcome: "uncertain",
+    checked_platform: true,
+    username: ta.username,
+    observed_at: new Date().toISOString(),
+  });
+  await post(
+    `/api/tiktok/accounts/${ta.id}/analytics`,
+    {
+      items: [
+        { observed_at: new Date().toISOString(), views: null, followers: 100 },
+      ],
+    },
+    201,
+  );
+  await check(`/api/tiktok/accounts/${ta.id}/analytics`, 200, {
+    headers: { Cookie: cookie },
+  });
+  await post(
+    "/api/tiktok/ai",
+    { account_id: ta.id, task: "caption", brief: "Test manual" },
+    503,
+  );
+  await check("/media/media/test/file.jpg?expires=NaN&sig=bad", 403);
+  await check("/media/media/test/file.jpg?expires=Infinity&sig=bad", 403);
   console.log("Runtime security smoke checks passed.");
 } finally {
   await mf.dispose();

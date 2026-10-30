@@ -44,7 +44,16 @@
     "ENVIRONMENT": "production",
     "BROWSER_USE_ENABLED": "false",
     "BROWSER_USE_MAX_COST_USD": "0.50",
-    "BROWSER_USE_MAX_RUNS_PER_DAY": "20"
+    "BROWSER_USE_MAX_RUNS_PER_DAY": "20",
+    "TIKTOK_SESSION_ENABLED": "false",
+    "TIKTOK_CONTENT_STUDIO_ENABLED": "false",
+    "TIKTOK_ANALYTICS_ENABLED": "false",
+    "TIKTOK_BROWSER_PUBLISH_ENABLED": "false",
+    "AI_CONTENT_ENABLED": "false",
+    "AI_PROVIDER": "none",
+    "AI_MODEL": "",
+    "AI_MAX_REQUESTS_PER_DAY": "20",
+    "AI_MAX_OUTPUT_TOKENS": "2048"
   },
   "routes": [
     {

@@ -16,6 +16,7 @@ import { sign, digest } from "./crypto";
 import { BrowserService } from "./browser-service";
 import { validateBrowserTarget, type ExecutionMethod } from "../shared/browser";
 import { z } from "zod";
+import { TikTokService } from "./tiktok-service";
 export class SocialService {
   readonly store: Store;
   readonly platforms: Platforms;
@@ -29,16 +30,26 @@ export class SocialService {
     if (!/^[\w-]+$/.test(id)) throw new AppError(400, "ID akun tidak valid.");
     return (await this.store.require<Account>(`accounts/${id}.json`)).value;
   }
-  async createDraft(input: unknown, crosspostId?: string) {
+  async createDraft(input: unknown, crosspostId?: string): Promise<Draft> {
+    return this.store.locked("media-references", () => this.createDraftUnlocked(input, crosspostId));
+  }
+  private async createDraftUnlocked(input: unknown, crosspostId?: string) {
     const p = draftInput.parse(input);
     const a = await this.account(p.account_id);
-    if (a.platform === "tiktok") throw new AppError(403, "TikTok hanya untuk melihat profil.");
+    if (a.platform === "tiktok") {
+      new TikTokService(this.env).enabled("TIKTOK_CONTENT_STUDIO_ENABLED");
+      if (p.kind !== "post" || p.post_type === "reel") throw new AppError(400, "TikTok hanya mendukung persiapan posting manual.");
+      if (p.disable_comment !== undefined || p.disable_duet !== undefined || p.disable_stitch !== undefined) throw new AppError(400, "Kontrol interaksi harus dipilih langsung di TikTok Web.");
+    }
+    for (const m of await this.media(p.media_ids)) if (m.accountId && m.accountId !== a.id) throw new AppError(403, "Media milik akun berbeda.");
     const at = new Date().toISOString();
     const d: Draft = {
       id: crypto.randomUUID(),
       accountId: p.account_id,
       kind: p.kind,
       caption: p.caption,
+      notes: p.notes,
+      aiGenerated: p.ai_generated,
       mediaIds: p.media_ids,
       postType: p.post_type,
       scheduledAt: p.scheduled_at,
@@ -68,16 +79,26 @@ export class SocialService {
     });
     return d;
   }
-  async updateDraft(id: string, input: unknown) {
+  async updateDraft(id: string, input: unknown): Promise<Draft> {
+    return this.store.locked("media-references", () => this.updateDraftUnlocked(id, input));
+  }
+  private async updateDraftUnlocked(id: string, input: unknown) {
     const o = await this.store.require<Draft>(`drafts/${id}.json`);
     assertEditable(o.value);
-    if ((await this.account(o.value.accountId)).platform === "tiktok") throw new AppError(403, "Draft TikTok dinonaktifkan.");
+    const a = await this.account(o.value.accountId);
+    if (a.platform === "tiktok") new TikTokService(this.env).enabled("TIKTOK_CONTENT_STUDIO_ENABLED");
     const p = draftInput.parse(input);
+    if (p.expected_revision !== undefined && p.expected_revision !== o.value.revision) throw new AppError(409, "Revisi draft berubah.");
+    if (a.platform === "tiktok" && p.expected_revision === undefined) throw new AppError(400, "expected_revision wajib untuk edit TikTok.");
+    if (a.platform === "tiktok" && (p.post_type === "reel" || p.disable_comment !== undefined || p.disable_duet !== undefined || p.disable_stitch !== undefined)) throw new AppError(400, "Opsi tidak didukung handoff TikTok.");
+    for (const m of await this.media(p.media_ids)) if (m.accountId && m.accountId !== a.id) throw new AppError(403, "Media milik akun berbeda.");
     if (p.account_id !== o.value.accountId || p.kind !== o.value.kind)
       throw new AppError(400, "Akun dan jenis aksi tidak dapat diubah.");
     const d: Draft = {
       ...o.value,
       caption: p.caption,
+      notes: p.notes,
+      aiGenerated: p.ai_generated,
       mediaIds: p.media_ids,
       postType: p.post_type,
       scheduledAt: p.scheduled_at,
@@ -96,12 +117,14 @@ export class SocialService {
       status: "draft",
       revision: o.value.revision + 1,
       updatedAt: new Date().toISOString(),
+      approval: undefined,
       approvedBy: undefined,
       approvedAt: undefined,
       approvedRevision: undefined,
       approvedBrowserBinding: undefined,
       executionMethod: undefined,
     };
+    await this.store.create(`draft-history/${id}/${o.value.revision}.json`, o.value);
     await this.store.put(`drafts/${id}.json`, d, o.etag);
     await this.store.log("draft.update", "success", {
       entityId: id,
@@ -126,6 +149,11 @@ export class SocialService {
     browserConsent = false,
   ) {
     const o = await this.store.require<Draft>(`drafts/${id}.json`);
+    if ((await this.account(o.value.accountId)).platform === "tiktok") {
+      if (method !== "manual") throw new AppError(403, "TikTok: hanya handoff manual didukung.");
+      return new TikTokService(this.env).approve(id, o.value.accountId, revision, owner, at);
+    }
+    if (method === "manual") throw new AppError(400, "Pilih jalur Instagram yang didukung.");
     assertEditable(o.value);
     if (o.value.revision !== revision)
       throw new AppError(
@@ -226,6 +254,7 @@ export class SocialService {
       ...o.value,
       status: "draft",
       revision: o.value.revision + 1,
+      approval: undefined,
       approvedBy: undefined,
       approvedAt: undefined,
       approvedRevision: undefined,
@@ -244,6 +273,8 @@ export class SocialService {
   async deleteDraft(id: string) {
     const o = await this.store.require<Draft>(`drafts/${id}.json`);
     assertEditable(o.value);
+    const tombstone = { ...o.value, status: "cancelled" as const, updatedAt: new Date().toISOString() };
+    await this.store.put(`drafts/${id}.json`, tombstone, o.etag);
     await this.env.DATA.delete(`drafts/${id}.json`);
     await this.store.log("draft.delete", "success", {
       entityId: id,
@@ -361,6 +392,7 @@ export class SocialService {
         continue;
       }
       let d = o.value;
+      if ((await this.account(d.accountId)).platform === "tiktok") continue;
       if (!["scheduled", "publishing"].includes(d.status)) {
         if (now.getTime() - marker.uploaded.getTime() > 600000)
           await this.env.DATA.delete(marker.key);

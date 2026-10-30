@@ -1,0 +1,24 @@
+{
+  "commit": "2fec2747ae8c07d7ec7e03577f12581f76606520",
+  "run_id": 40786490001,
+  "url": "https://github.com/harvey-moeid/mcsos/actions/runs/40786490001",
+  "conclusion": "success",
+  "gates": [
+    "npm ci",
+    "secret pattern scan",
+    "dependency audit",
+    "typecheck/unit/integration/build",
+    "generated types",
+    "Workerd runtime",
+    "staging dry-run",
+    "artifact validation",
+    "Chromium install",
+    "8 browser tests",
+    "artifact upload"
+  ],
+  "artifact": {
+    "id": 12860305152,
+    "name": "validation-evidence",
+    "sha256": "9199a07db420061de20d31c4ecf6298f06a21e720dcdd15f3a1b7f9de2913347"
+  }
+}

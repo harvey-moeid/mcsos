@@ -1,3 +1,4 @@
+import { TikTokWorkspace } from "./TikTokWorkspace";
 import {
   useEffect,
   useMemo,
@@ -72,14 +73,28 @@ import type {
 } from "../shared/model";
 import { loadDemo, saveDemo, seedDemo, DEMO_KEY } from "./demo";
 import { getWorkspace, request, uploadFile, inspectFile } from "./client";
-type View = "inbox" | "queue" | "analytics" | "accounts" | "media" | "logs";
+type View =
+  | "inbox"
+  | "queue"
+  | "analytics"
+  | "accounts"
+  | "media"
+  | "logs"
+  | "overview"
+  | "studio"
+  | "mcp"
+  | "settings";
 const navigation = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "studio", label: "AI Content Studio", icon: Lightbulb },
   { id: "inbox", label: "Inbox approval", icon: LayoutDashboard },
   { id: "queue", label: "Antrean & kalender", icon: CalendarDays },
   { id: "analytics", label: "Analitik", icon: ChartNoAxesCombined },
   { id: "accounts", label: "Akun terhubung", icon: Users },
   { id: "media", label: "Pustaka media", icon: Images },
   { id: "logs", label: "Log aktivitas", icon: ScrollText },
+  { id: "mcp", label: "MCP Tools", icon: Link },
+  { id: "settings", label: "Pengaturan", icon: ShieldCheck },
 ] as const;
 const fmt = new Intl.NumberFormat("id-ID"),
   compact = (n: number) =>
@@ -554,7 +569,11 @@ export default function App() {
       ),
     [drafts, accountFilter, search],
   );
-  const pending = filtered.filter((d) => d.status === "draft"),
+  const pending = filtered.filter(
+      (d) =>
+        d.status === "draft" &&
+        accounts.find((a) => a.id === d.accountId)?.platform === "instagram",
+    ),
     shown = pending.filter(
       (d) => typeFilter === "all" || d.kind === typeFilter,
     ),
@@ -579,7 +598,7 @@ export default function App() {
               social<span>mcp</span>
             </strong>
           </div>
-          <p className="eyebrow">YOUR SOCIAL WORKSPACE</p>
+          <p className="eyebrow">RUANG KERJA SOSIAL ANDA</p>
           <h1>
             Ide dari AI.
             <br />
@@ -628,9 +647,7 @@ export default function App() {
               </span>
             </div>
           )}
-          <footer>
-            Compatible with ChatGPT / Codex · Claude · MCP clients
-          </footer>
+          <footer>Terhubung ke ChatGPT / Codex · Claude · klien MCP</footer>
         </div>
       </main>
     );
@@ -673,7 +690,7 @@ export default function App() {
         <div className="workspace-name">
           <div className="avatar">W</div>
           <span>
-            <strong>Personal workspace</strong>
+            <strong>Workspace pribadi</strong>
             <small>Satu pemilik · {accounts.length} akun</small>
           </span>
         </div>
@@ -682,6 +699,7 @@ export default function App() {
           {navigation.map((n) => (
             <button
               key={n.id}
+              aria-label={n.label}
               aria-current={view === n.id ? "page" : undefined}
               className={`nav-item ${view === n.id ? "active" : ""}`}
               onClick={() => {
@@ -701,7 +719,7 @@ export default function App() {
         <div className="sidebar-bottom">
           <div className="mcp-card">
             <span className="mcp-symbol">✳</span>
-            <h4>AI, meet your socials.</h4>
+            <h4>AI untuk ruang sosial Anda.</h4>
             <p>Hubungkan ChatGPT, Codex, atau Claude ke workspace ini.</p>
             <button onClick={() => setMcpInfo(true)}>
               Hubungkan MCP <ArrowUpRight size={15} />
@@ -730,7 +748,7 @@ export default function App() {
             <span>
               <strong>You</strong>
               <small>
-                {workspace.demo ? "Demo workspace" : "Workspace owner"}
+                {workspace.demo ? "Demo workspace" : "Pemilik workspace"}
               </small>
             </span>
             <button
@@ -786,7 +804,7 @@ export default function App() {
             </label>
             <span className="owner-tag">
               <span className="dot" />
-              {workspace.demo ? "Demo" : "Private"}
+              {workspace.demo ? "Demo" : "Privat"}
             </span>
           </div>
         </header>
@@ -813,13 +831,17 @@ export default function App() {
             <div>
               <p className="eyebrow">
                 {view === "inbox"
-                  ? "YOU HAVE THE FINAL SAY"
-                  : "PERSONAL SOCIAL WORKSPACE"}
+                  ? "KEPUTUSAN ADA DI TANGAN ANDA"
+                  : "WORKSPACE SOSIAL PRIBADI"}
               </p>
               <h1>
                 {
                   (
                     {
+                      overview: "Overview",
+                      studio: "AI Content Studio",
+                      mcp: "MCP Tools",
+                      settings: "Pengaturan",
                       inbox: "Inbox approval",
                       queue: "Antrean & kalender",
                       analytics: "Analitik",
@@ -835,6 +857,11 @@ export default function App() {
                 {
                   (
                     {
+                      overview:
+                        "Ringkasan workspace TikTok dan status pekerjaan.",
+                      studio: "Siapkan konten AI atau tulis secara manual.",
+                      mcp: "Tools berbasis izin dengan approval manusia.",
+                      settings: "Kemampuan aktual dan konfigurasi server.",
                       inbox:
                         "Dari ide menjadi konten. Tinjau, sempurnakan, lalu setujui.",
                       queue:
@@ -852,70 +879,98 @@ export default function App() {
               </p>
             </div>
             <div className="heading-actions">
-              {view === "inbox" && (
-                <button
-                  className="button"
-                  onClick={() => setConversation(true)}
-                >
-                  <MessageCircle size={16} />
-                  Percakapan
-                </button>
-              )}
-              {["inbox", "queue"].includes(view) && (
-                <button
-                  className="button primary"
-                  onClick={() => setEditor("new")}
-                >
-                  <Plus size={17} />
-                  Buat draft
-                </button>
-              )}
-              {view === "queue" && (
-                <button className="button" disabled={busy} onClick={() => run(async () => {
-                  if (workspace.demo) { notify("Demo tidak menjalankan publisher."); return; }
-                  await request("/api/publisher/run", workspace.csrf, "POST", {});
-                  await reload();
-                  notify("Satu putaran antrean selesai. Polling berikutnya memerlukan klik manual.");
-                })}><RefreshCw size={16} /> Proses antrean manual</button>
-              )}
-              {view === "analytics" && (
-                <button
-                  className="button"
-                  disabled={busy}
-                  onClick={() =>
-                    run(async () => {
-                      if (workspace.demo) {
-                        notify("Demo menggunakan metrik contoh.");
-                        return;
-                      }
-                      for (const a of scopedAccounts.filter(
-                        (a) => a.platform === "instagram" && a.status === "connected",
-                      )) {
+              {view === "inbox" &&
+                scopedAccounts.some((a) => a.platform === "instagram") && (
+                  <button
+                    className="button"
+                    onClick={() => setConversation(true)}
+                  >
+                    <MessageCircle size={16} />
+                    Percakapan
+                  </button>
+                )}
+              {["inbox", "queue"].includes(view) &&
+                scopedAccounts.some((a) => a.platform === "instagram") && (
+                  <button
+                    className="button primary"
+                    onClick={() => setEditor("new")}
+                  >
+                    <Plus size={17} />
+                    Buat draft
+                  </button>
+                )}
+              {view === "queue" &&
+                scopedAccounts.some((a) => a.platform === "instagram") && (
+                  <button
+                    className="button"
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        if (workspace.demo) {
+                          notify("Demo tidak menjalankan publisher.");
+                          return;
+                        }
                         await request(
-                          `/api/accounts/${a.id}/stats`,
+                          "/api/publisher/run",
                           workspace.csrf,
+                          "POST",
+                          {},
                         );
-                        await request(
-                          `/api/accounts/${a.id}/posts`,
-                          workspace.csrf,
+                        await reload();
+                        notify(
+                          "Satu putaran antrean selesai. Polling berikutnya memerlukan klik manual.",
                         );
-                      }
-                      await reload();
-                      notify("Data resmi diperbarui.");
-                    })
-                  }
-                >
-                  <RefreshCw size={16} className={busy ? "spin" : ""} />
-                  Refresh data
-                </button>
-              )}
+                      })
+                    }
+                  >
+                    <RefreshCw size={16} /> Proses antrean manual
+                  </button>
+                )}
+              {view === "analytics" &&
+                scopedAccounts.some((a) => a.platform === "instagram") && (
+                  <button
+                    className="button"
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        if (workspace.demo) {
+                          notify("Demo menggunakan metrik contoh.");
+                          return;
+                        }
+                        for (const a of scopedAccounts.filter(
+                          (a) =>
+                            a.platform === "instagram" &&
+                            a.status === "connected",
+                        )) {
+                          await request(
+                            `/api/accounts/${a.id}/stats`,
+                            workspace.csrf,
+                          );
+                          await request(
+                            `/api/accounts/${a.id}/posts`,
+                            workspace.csrf,
+                          );
+                        }
+                        await reload();
+                        notify("Data resmi diperbarui.");
+                      })
+                    }
+                  >
+                    <RefreshCw size={16} className={busy ? "spin" : ""} />
+                    Refresh data
+                  </button>
+                )}
             </div>
           </div>
           {accounts.some((a) =>
-            a.platformId === "browser-only"
-              ? a.browser?.status !== "ready"
-              : a.status === "reconnect" ||
-                Date.parse(a.expiresAt) <= Date.now(),
+            a.platform === "tiktok"
+              ? a.tiktok?.status !== "ready" ||
+                !a.tiktok.verifiedAt ||
+                Date.now() - Date.parse(a.tiktok.verifiedAt) > 86400000
+              : a.platformId === "browser-only"
+                ? a.browser?.status !== "ready"
+                : a.status === "reconnect" ||
+                  Date.parse(a.expiresAt) <= Date.now(),
           ) && (
             <div className="warning-banner">
               <AlertTriangle size={18} />
@@ -928,258 +983,290 @@ export default function App() {
               </button>
             </div>
           )}
-          {view === "inbox" && (
-            <>
-              <div className="summary-grid">
-                <Summary
-                  label="Menunggu persetujuan"
-                  value={pending.length}
-                  icon={Inbox}
-                  note="Keputusan ada di tanganmu"
-                />
-                <Summary
-                  label="Konten terjadwal"
-                  value={
-                    filtered.filter((d) => d.status === "scheduled").length
-                  }
-                  icon={CalendarDays}
-                  note="Sudah mendapat persetujuan"
-                />
-                <Summary
-                  label="Akun terhubung"
-                  value={
-                    scopedAccounts.filter(
-                      (a) =>
-                        a.status === "connected" ||
-                        (a.browser?.enabled && a.browser.status === "ready"),
-                    ).length
-                  }
-                  icon={Users}
-                  note={`${scopedAccounts.length} akun dalam workspace`}
-                />
-                <Summary
-                  label="Perlu perhatian"
-                  value={
-                    filtered.filter((d) =>
-                      ["failed", "uncertain"].includes(d.status),
-                    ).length
-                  }
-                  icon={AlertTriangle}
-                  note="Tinjau detail di antrean"
-                  attention
-                />
-              </div>
-              <div className="section-bar">
-                <div className="tabs">
-                  {[
-                    { id: "all", label: "Semua draft" },
-                    { id: "post", label: "Posting" },
-                    { id: "comment_reply", label: "Komentar" },
-                    { id: "dm_reply", label: "DM" },
-                    { id: "comment_moderation", label: "Moderasi" },
-                  ].map((t) => (
-                    <button
-                      key={t.id}
-                      className={typeFilter === t.id ? "active" : ""}
-                      onClick={() => {
-                        setTypeFilter(t.id);
-                        setSelected([]);
-                      }}
-                    >
-                      {t.label}
-                      <span>
-                        {
-                          pending.filter(
-                            (d) => t.id === "all" || d.kind === t.id,
-                          ).length
-                        }
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <label className="search">
-                  <Search size={16} />
-                  <input
-                    placeholder="Cari draft…"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+          <TikTokWorkspace
+            workspace={workspace}
+            view={view}
+            filter={accountFilter}
+            reload={reload}
+            notify={notify}
+            browser={setBrowserSettingsId}
+          />
+          {view === "inbox" &&
+            scopedAccounts.some((a) => a.platform === "instagram") && (
+              <>
+                <div className="summary-grid">
+                  <Summary
+                    label="Menunggu persetujuan"
+                    value={pending.length}
+                    icon={Inbox}
+                    note="Keputusan ada di tanganmu"
                   />
-                </label>
-              </div>
-              {selected.length > 0 && (
-                <div className="bulk-bar">
-                  <span>{selected.length} balasan komentar dipilih</span>
-                  <button
-                    className="button primary"
-                    disabled={busy}
-                    onClick={() =>
-                      run(async () => {
-                        const items = selected
-                          .map((id) => drafts.find((d) => d.id === id)!)
-                          .filter(Boolean);
-                        if (workspace.demo)
-                          demoUpdate(
-                            (w) => ({
-                              ...w,
-                              drafts: w.drafts.map((d) =>
-                                selected.includes(d.id) &&
-                                d.kind === "comment_reply"
-                                  ? {
-                                      ...d,
-                                      status: "scheduled",
-                                      scheduledAt: new Date().toISOString(),
-                                      approvedBy: "demo-owner",
-                                      approvedAt: new Date().toISOString(),
-                                      approvedRevision: d.revision,
-                                    }
-                                  : d,
-                              ),
-                            }),
-                            "approval.bulk",
-                          );
-                        else {
-                          const r = await request<{
-                            results: { ok: boolean; error?: string }[];
-                          }>("/api/bulk-approve", workspace.csrf, "POST", {
-                            items: items.map((d) => ({
-                              id: d.id,
-                              revision: d.revision,
-                            })),
-                          });
-                          if (r.results.some((x) => !x.ok))
-                            throw new Error(
-                              r.results
-                                .filter((x) => !x.ok)
-                                .map((x) => x.error)
-                                .join("; "),
-                            );
-                          await reload();
-                        }
-                        setSelected([]);
-                        notify("Balasan komentar masuk antrean.");
-                      })
+                  <Summary
+                    label="Konten terjadwal"
+                    value={
+                      filtered.filter((d) => d.status === "scheduled").length
                     }
-                  >
-                    <CheckCheck size={16} />
-                    Setujui balasan terpilih
-                  </button>
+                    icon={CalendarDays}
+                    note="Sudah mendapat persetujuan"
+                  />
+                  <Summary
+                    label="Akun terhubung"
+                    value={
+                      scopedAccounts.filter(
+                        (a) =>
+                          a.status === "connected" ||
+                          (a.browser?.enabled && a.browser.status === "ready"),
+                      ).length
+                    }
+                    icon={Users}
+                    note={`${scopedAccounts.length} akun dalam workspace`}
+                  />
+                  <Summary
+                    label="Perlu perhatian"
+                    value={
+                      filtered.filter((d) =>
+                        ["failed", "uncertain"].includes(d.status),
+                      ).length
+                    }
+                    icon={AlertTriangle}
+                    note="Tinjau detail di antrean"
+                    attention
+                  />
                 </div>
-              )}
-              {shown.length ? (
-                <div className="draft-grid">
-                  {shown.map((d) => (
-                    <article
-                      className={`draft-card ${d.kind !== "post" ? "reply-card" : ""}`}
-                      key={d.id}
-                    >
-                      <div className="draft-card-header">
-                        <span
-                          className={`platform-label ${account(d.accountId)?.platform}`}
-                        >
-                          <PlatformIcon
-                            platform={
-                              account(d.accountId)?.platform || "instagram"
-                            }
-                          />
-                          {account(d.accountId)?.platform === "instagram"
-                            ? "Instagram"
-                            : "TikTok"}
-                          <span>·</span>
-                          {labels[d.kind]}
-                        </span>
-                        {d.kind === "comment_reply" ? (
-                          <input
-                            type="checkbox"
-                            aria-label={`Pilih balasan ${d.id}`}
-                            checked={selected.includes(d.id)}
-                            onChange={(e) =>
-                              setSelected((s) =>
-                                e.target.checked
-                                  ? [...s, d.id]
-                                  : s.filter((x) => x !== d.id),
-                              )
-                            }
-                          />
-                        ) : (
-                          <span className="revision">v{d.revision}</span>
-                        )}
-                      </div>
-                      <PostPreview
-                        draft={d}
-                        account={account(d.accountId)}
-                        media={media}
-                      />
-                      <div className="draft-meta">
+                <div className="section-bar">
+                  <div className="tabs">
+                    {[
+                      { id: "all", label: "Semua draft" },
+                      { id: "post", label: "Posting" },
+                      { id: "comment_reply", label: "Komentar" },
+                      { id: "dm_reply", label: "DM" },
+                      { id: "comment_moderation", label: "Moderasi" },
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        className={typeFilter === t.id ? "active" : ""}
+                        onClick={() => {
+                          setTypeFilter(t.id);
+                          setSelected([]);
+                        }}
+                      >
+                        {t.label}
                         <span>
-                          <Clock size={13} />
-                          {d.scheduledAt
-                            ? date(d.scheduledAt)
-                            : "Belum ada usulan jadwal"}
+                          {
+                            pending.filter(
+                              (d) => t.id === "all" || d.kind === t.id,
+                            ).length
+                          }
                         </span>
-                        {d.crosspostId && (
-                          <span className="crosspost-tag">Cross-post</span>
-                        )}
-                      </div>
-                      <div className="draft-card-footer">
-                        <button
-                          className="button primary"
-                          onClick={() => setApproval(d)}
-                        >
-                          <Check size={16} />
-                          Tinjau & setujui
-                        </button>
-                        <button
-                          className="icon-btn bordered"
-                          title="Edit draft"
-                          aria-label="Edit draft"
-                          onClick={() => setEditor(d)}
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                        <button
-                          className="icon-btn bordered"
-                          title="Tolak draft"
-                          aria-label="Tolak draft"
-                          onClick={() => setReject(d)}
-                        >
-                          <X size={17} />
-                        </button>
-                      </div>
-                    </article>
-                  ))}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="search">
+                    <Search size={16} />
+                    <input
+                      placeholder="Cari draft…"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </label>
                 </div>
-              ) : (
-                <Empty title="Inbox sudah bersih">
-                  Draft dari klien MCP atau tombol Buat draft akan muncul di
-                  sini.
-                </Empty>
-              )}
-              <div className="approval-note">
-                <ShieldCheck size={15} />
-                <span>
-                  AI menyiapkan. Kamu menyetujui. Tidak ada publish tanpa
-                  approval.
-                </span>
-              </div>
-            </>
-          )}
-          {view === "queue" && (
-            <Queue
-              drafts={filtered}
-              ideas={workspace.ideas.filter(
-                (i) => accountFilter === "all" || i.accountId === accountFilter,
-              )}
-              accounts={accounts}
-              onCancel={cancelDraft}
-              onEdit={setEditor}
-              onApprove={setApproval}
-              onIdea={() => setIdeaEditor(true)}
-              onBrowserJob={setBrowserJobId}
-            />
-          )}
-          {view === "analytics" && (
-            <Analytics workspace={workspace} accountFilter={accountFilter} />
-          )}
+                {selected.length > 0 && (
+                  <div className="bulk-bar">
+                    <span>{selected.length} balasan komentar dipilih</span>
+                    <button
+                      className="button primary"
+                      disabled={busy}
+                      onClick={() =>
+                        run(async () => {
+                          const items = selected
+                            .map((id) => drafts.find((d) => d.id === id)!)
+                            .filter(Boolean);
+                          if (workspace.demo)
+                            demoUpdate(
+                              (w) => ({
+                                ...w,
+                                drafts: w.drafts.map((d) =>
+                                  selected.includes(d.id) &&
+                                  d.kind === "comment_reply"
+                                    ? {
+                                        ...d,
+                                        status: "scheduled",
+                                        scheduledAt: new Date().toISOString(),
+                                        approvedBy: "demo-owner",
+                                        approvedAt: new Date().toISOString(),
+                                        approvedRevision: d.revision,
+                                      }
+                                    : d,
+                                ),
+                              }),
+                              "approval.bulk",
+                            );
+                          else {
+                            const r = await request<{
+                              results: { ok: boolean; error?: string }[];
+                            }>("/api/bulk-approve", workspace.csrf, "POST", {
+                              items: items.map((d) => ({
+                                id: d.id,
+                                revision: d.revision,
+                              })),
+                            });
+                            if (r.results.some((x) => !x.ok))
+                              throw new Error(
+                                r.results
+                                  .filter((x) => !x.ok)
+                                  .map((x) => x.error)
+                                  .join("; "),
+                              );
+                            await reload();
+                          }
+                          setSelected([]);
+                          notify("Balasan komentar masuk antrean.");
+                        })
+                      }
+                    >
+                      <CheckCheck size={16} />
+                      Setujui balasan terpilih
+                    </button>
+                  </div>
+                )}
+                {shown.length ? (
+                  <div className="draft-grid">
+                    {shown.map((d) => (
+                      <article
+                        className={`draft-card ${d.kind !== "post" ? "reply-card" : ""}`}
+                        key={d.id}
+                      >
+                        <div className="draft-card-header">
+                          <span
+                            className={`platform-label ${account(d.accountId)?.platform}`}
+                          >
+                            <PlatformIcon
+                              platform={
+                                account(d.accountId)?.platform || "instagram"
+                              }
+                            />
+                            {account(d.accountId)?.platform === "instagram"
+                              ? "Instagram"
+                              : "TikTok"}
+                            <span>·</span>
+                            {labels[d.kind]}
+                          </span>
+                          {d.kind === "comment_reply" ? (
+                            <input
+                              type="checkbox"
+                              aria-label={`Pilih balasan ${d.id}`}
+                              checked={selected.includes(d.id)}
+                              onChange={(e) =>
+                                setSelected((s) =>
+                                  e.target.checked
+                                    ? [...s, d.id]
+                                    : s.filter((x) => x !== d.id),
+                                )
+                              }
+                            />
+                          ) : (
+                            <span className="revision">v{d.revision}</span>
+                          )}
+                        </div>
+                        <PostPreview
+                          draft={d}
+                          account={account(d.accountId)}
+                          media={media}
+                        />
+                        <div className="draft-meta">
+                          <span>
+                            <Clock size={13} />
+                            {d.scheduledAt
+                              ? date(d.scheduledAt)
+                              : "Belum ada usulan jadwal"}
+                          </span>
+                          {d.crosspostId && (
+                            <span className="crosspost-tag">Cross-post</span>
+                          )}
+                        </div>
+                        <div className="draft-card-footer">
+                          <button
+                            className="button primary"
+                            onClick={() => setApproval(d)}
+                          >
+                            <Check size={16} />
+                            Tinjau & setujui
+                          </button>
+                          <button
+                            className="icon-btn bordered"
+                            title="Edit draft"
+                            aria-label="Edit draft"
+                            onClick={() => setEditor(d)}
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                          <button
+                            className="icon-btn bordered"
+                            title="Tolak draft"
+                            aria-label="Tolak draft"
+                            onClick={() => setReject(d)}
+                          >
+                            <X size={17} />
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <Empty title="Inbox sudah bersih">
+                    Draft dari klien MCP atau tombol Buat draft akan muncul di
+                    sini.
+                  </Empty>
+                )}
+                <div className="approval-note">
+                  <ShieldCheck size={15} />
+                  <span>
+                    AI menyiapkan. Kamu menyetujui. Tidak ada publish tanpa
+                    approval.
+                  </span>
+                </div>
+              </>
+            )}
+          {view === "queue" &&
+            scopedAccounts.some((a) => a.platform === "instagram") && (
+              <Queue
+                drafts={filtered.filter(
+                  (d) =>
+                    accounts.find((a) => a.id === d.accountId)?.platform ===
+                    "instagram",
+                )}
+                ideas={workspace.ideas.filter(
+                  (i) =>
+                    accountFilter === "all" || i.accountId === accountFilter,
+                )}
+                accounts={accounts}
+                onCancel={cancelDraft}
+                onEdit={setEditor}
+                onApprove={setApproval}
+                onIdea={() => setIdeaEditor(true)}
+                onBrowserJob={setBrowserJobId}
+              />
+            )}
+          {view === "analytics" &&
+            scopedAccounts.some((a) => a.platform === "instagram") && (
+              <Analytics
+                workspace={{
+                  ...workspace,
+                  accounts: accounts.filter((a) => a.platform === "instagram"),
+                  stats: workspace.stats.filter(
+                    (x) =>
+                      accounts.find((a) => a.id === x.accountId)?.platform ===
+                      "instagram",
+                  ),
+                  posts: workspace.posts.filter(
+                    (x) =>
+                      accounts.find((a) => a.id === x.accountId)?.platform ===
+                      "instagram",
+                  ),
+                }}
+                accountFilter={accountFilter}
+              />
+            )}
           {view === "accounts" && (
             <>
               <div className="connection-header">
@@ -1197,7 +1284,8 @@ export default function App() {
               </div>
               <div className="browser-toolbar">
                 <p className="muted">
-                  Koneksi API utama, browser sebagai opsi tambahan.
+                  Instagram menggunakan API atau browser opsional. TikTok
+                  menggunakan sesi manusia dan handoff manual.
                 </p>
                 <button
                   className="button"
@@ -1208,7 +1296,7 @@ export default function App() {
                 </button>
               </div>
               <div className="account-grid">
-                {(["instagram", "tiktok"] as const).map((platform) => (
+                {(["instagram"] as Account["platform"][]).map((platform) => (
                   <section className="platform-card" key={platform}>
                     <div className="platform-card-top">
                       <span className={`platform-logo ${platform}`}>
@@ -1267,7 +1355,16 @@ export default function App() {
                                   : "API perlu koneksi ulang"}
                             </span>
                           </div>
-                          {a.platform === "tiktok" && a.platformId !== "browser-only" && <TikTokProfile id={a.id} csrf={workspace.csrf} demo={workspace.demo} fallbackName={a.username} fallbackAvatar={a.avatar} />}
+                          {a.platform === "tiktok" &&
+                            a.platformId !== "browser-only" && (
+                              <TikTokProfile
+                                id={a.id}
+                                csrf={workspace.csrf}
+                                demo={workspace.demo}
+                                fallbackName={a.username}
+                                fallbackAvatar={a.avatar}
+                              />
+                            )}
                           <div className="token-meta">
                             <span>
                               {a.platformId === "browser-only"
@@ -1379,7 +1476,9 @@ export default function App() {
                   <h4>Prasyarat platform</h4>
                   <p>
                     Instagram membutuhkan akun profesional dan izin app Meta.
-                    TikTok hanya untuk melihat profil. Posting, video, komentar, dan DM TikTok dinonaktifkan. Tanpa Cron, antrean Instagram diproses manual.
+                    TikTok memakai studio dan handoff manual; ekstraksi,
+                    komentar, DM, serta publikasi otomatis TikTok tidak
+                    diaktifkan. Tanpa Cron, antrean diproses pemilik.
                   </p>
                 </div>
               </div>
@@ -1394,7 +1493,12 @@ export default function App() {
           )}
           {view === "media" && (
             <MediaLibrary
-              media={media}
+              media={media.filter(
+                (m) =>
+                  accountFilter === "all" ||
+                  !m.accountId ||
+                  m.accountId === accountFilter,
+              )}
               busy={busy}
               onUpload={(file) =>
                 run(async () => {
@@ -1537,7 +1641,7 @@ export default function App() {
             })()}
           <footer className="page-footer">
             <span>
-              Social MCP <span>·</span> Your socials, your say.
+              Social MCP <span>·</span> Ruang sosial, kendali Anda.
             </span>
             <span>
               <span className="dot" />{" "}
@@ -1713,6 +1817,23 @@ export default function App() {
           />
         </Modal>
       )}
+      <nav className="tt-bottom-nav" aria-label="Navigasi seluler">
+        {navigation
+          .filter((n) =>
+            ["overview", "studio", "inbox", "queue", "accounts"].includes(n.id),
+          )
+          .map((n) => (
+            <button
+              key={n.id}
+              aria-label={`Seluler ${n.label}`}
+              aria-current={view === n.id ? "page" : undefined}
+              onClick={() => setView(n.id)}
+            >
+              <n.icon size={18} />
+              <span>{n.label}</span>
+            </button>
+          ))}
+      </nav>
       {editor && (
         <DraftEditor
           draft={editor === "new" ? undefined : editor}
@@ -1782,6 +1903,7 @@ export default function App() {
                       editing ? "PATCH" : "POST",
                       {
                         ...input,
+                        expected_revision: editing?.revision,
                         account_id: target,
                         kind: draftKind,
                       },
@@ -2119,7 +2241,12 @@ function DraftEditor({
   onSave: (input: Record<string, unknown>, targets: string[]) => void;
 }) {
   const [targets, setTargets] = useState<string[]>(
-      draft ? [draft.accountId] : accounts.filter((a) => a.platform === "instagram").slice(0, 1).map((a) => a.id),
+      draft
+        ? [draft.accountId]
+        : accounts
+            .filter((a) => a.platform === "instagram")
+            .slice(0, 1)
+            .map((a) => a.id),
     ),
     [browserUrl, setBrowserUrl] = useState(draft?.browserTarget?.url || ""),
     [browserAuthor, setBrowserAuthor] = useState(
@@ -2170,28 +2297,30 @@ function DraftEditor({
             Setiap akun menjadi varian yang disetujui terpisah.
           </span>
           <div className="target-list">
-            {accounts.filter((a) => a.platform === "instagram").map((a) => (
-              <label
-                key={a.id}
-                className={targets.includes(a.id) ? "selected" : ""}
-              >
-                <input
-                  type="checkbox"
-                  disabled={!!draft}
-                  checked={targets.includes(a.id)}
-                  onChange={(e) =>
-                    setTargets((t) =>
-                      e.target.checked
-                        ? [...t, a.id]
-                        : t.filter((x) => x !== a.id),
-                    )
-                  }
-                />
-                <PlatformIcon platform={a.platform} />
-                {a.label}
-                <small>{a.platform === "instagram" ? "IG" : "TikTok"}</small>
-              </label>
-            ))}
+            {accounts
+              .filter((a) => a.platform === "instagram")
+              .map((a) => (
+                <label
+                  key={a.id}
+                  className={targets.includes(a.id) ? "selected" : ""}
+                >
+                  <input
+                    type="checkbox"
+                    disabled={!!draft}
+                    checked={targets.includes(a.id)}
+                    onChange={(e) =>
+                      setTargets((t) =>
+                        e.target.checked
+                          ? [...t, a.id]
+                          : t.filter((x) => x !== a.id),
+                      )
+                    }
+                  />
+                  <PlatformIcon platform={a.platform} />
+                  {a.label}
+                  <small>{a.platform === "instagram" ? "IG" : "TikTok"}</small>
+                </label>
+              ))}
           </div>
         </label>
         {isPost && (
@@ -3258,18 +3387,21 @@ function MediaLibrary({
       <label
         className={`upload-zone ${busy ? "disabled" : ""}`}
         onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
+        onDrop={async (e) => {
           e.preventDefault();
-          if (!busy && e.dataTransfer.files[0])
-            onUpload(e.dataTransfer.files[0]);
+          if (!busy)
+            for (const file of Array.from(e.dataTransfer.files))
+              await onUpload(file);
         }}
       >
         <input
           type="file"
+          multiple
           disabled={busy}
-          accept="image/jpeg,video/mp4,video/quicktime"
-          onChange={(e) => {
-            if (e.target.files?.[0]) onUpload(e.target.files[0]);
+          accept="image/jpeg,image/webp,image/png,video/mp4,video/quicktime"
+          onChange={async (e) => {
+            for (const file of Array.from(e.target.files || []))
+              await onUpload(file);
             e.target.value = "";
           }}
         />
@@ -3285,7 +3417,10 @@ function MediaLibrary({
             ? "Mengupload & memvalidasi…"
             : "Letakkan media di sini, atau pilih file"}
         </h3>
-        <p>JPEG sampai 8 MB · MP4/MOV sampai 1 GB · Upload langsung ke R2</p>
+        <p>
+          JPEG/PNG/WEBP sampai 20 MB · MP4/MOV sampai 1 GB · Upload langsung ke
+          R2
+        </p>
         <span className="button">
           Pilih file <Plus size={15} />
         </span>
@@ -3780,21 +3915,71 @@ function PageSelection({
   );
 }
 
-function TikTokProfile({ id, csrf, demo, fallbackName, fallbackAvatar }: { id: string; csrf?: string; demo: boolean; fallbackName: string; fallbackAvatar?: string }) {
-  const [profile, setProfile] = useState<{ displayName: string; avatarUrl: string } | null>(null);
+function TikTokProfile({
+  id,
+  csrf,
+  demo,
+  fallbackName,
+  fallbackAvatar,
+}: {
+  id: string;
+  csrf?: string;
+  demo: boolean;
+  fallbackName: string;
+  fallbackAvatar?: string;
+}) {
+  const [profile, setProfile] = useState<{
+    displayName: string;
+    avatarUrl: string;
+  } | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const avatar = profile?.avatarUrl || fallbackAvatar;
-  return <div className="token-meta">
-    {avatar && <img src={avatar} alt="Foto profil TikTok" width={42} height={42} referrerPolicy="no-referrer" style={{ borderRadius: "50%", objectFit: "cover" }} />}
-    <strong>{profile?.displayName || fallbackName}</strong>
-    <button className="text-button" disabled={loading} onClick={async () => {
-      if (demo) { setProfile({ displayName: fallbackName, avatarUrl: fallbackAvatar || "" }); return; }
-      setLoading(true); setError("");
-      try { setProfile(await request<{ displayName: string; avatarUrl: string }>(`/api/accounts/${id}/profile`, csrf)); }
-      catch (e) { setError(e instanceof Error ? e.message : "Gagal membaca profil TikTok."); }
-      finally { setLoading(false); }
-    }}>{loading ? "Memuat profil…" : "Lihat profil TikTok"}</button>
-    {error && <span role="alert">{error}</span>}
-  </div>;
+  return (
+    <div className="token-meta">
+      {avatar && (
+        <img
+          src={avatar}
+          alt="Foto profil TikTok"
+          width={42}
+          height={42}
+          referrerPolicy="no-referrer"
+          style={{ borderRadius: "50%", objectFit: "cover" }}
+        />
+      )}
+      <strong>{profile?.displayName || fallbackName}</strong>
+      <button
+        className="text-button"
+        disabled={loading}
+        onClick={async () => {
+          if (demo) {
+            setProfile({
+              displayName: fallbackName,
+              avatarUrl: fallbackAvatar || "",
+            });
+            return;
+          }
+          setLoading(true);
+          setError("");
+          try {
+            setProfile(
+              await request<{ displayName: string; avatarUrl: string }>(
+                `/api/accounts/${id}/profile`,
+                csrf,
+              ),
+            );
+          } catch (e) {
+            setError(
+              e instanceof Error ? e.message : "Gagal membaca profil TikTok.",
+            );
+          } finally {
+            setLoading(false);
+          }
+        }}
+      >
+        {loading ? "Memuat profil…" : "Lihat profil TikTok"}
+      </button>
+      {error && <span role="alert">{error}</span>}
+    </div>
+  );
 }

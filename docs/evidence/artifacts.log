@@ -1,0 +1,5 @@
+
+> social-mcp@2.0.0 check:artifacts
+> node scripts/check-artifacts.mjs
+
+Identitas Cloudflare, no-Cron, default aman, SPA dan bundle Worker: PASS

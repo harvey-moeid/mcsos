@@ -165,7 +165,7 @@ describe("profile binding and approval", () => {
     expect(approved.approvedBrowserBinding).toBe(1);
     await expect(social.approve(d.id, 1, "42")).rejects.toThrow();
   });
-  it("rejects every TikTok draft action in profile-only mode", async () => {
+  it("rejects TikTok studio when feature disabled and always blocks agent approval", async () => {
     await social.store.put(`accounts/${a.id}.json`, {
       ...a,
       platform: "tiktok",
@@ -175,13 +175,13 @@ describe("profile binding and approval", () => {
         account_id: a.id,
         media_ids: [media.id],
       }),
-    ).rejects.toThrow("profil");
+    ).rejects.toThrow("belum diaktifkan");
     const existing = approvedDraft({
       accountId: a.id,
       status: "draft",
     });
     await social.store.put(`drafts/${existing.id}.json`, existing);
-    await expect(social.approve(existing.id, 1, "42", undefined, "browser", true)).rejects.toThrow("profil");
+    await expect(social.approve(existing.id, 1, "42", undefined, "browser", true)).rejects.toThrow("handoff manual");
     expect(browser.cloud.createRun).not.toHaveBeenCalled();
   });
   it("invalidates the old approval binding when profile settings change", async () => {
@@ -533,7 +533,7 @@ describe("read capability boundaries", () => {
         kind: "conversation",
         target_url: "https://www.tiktok.com/",
       }),
-    ).rejects.toThrow("DM");
+    ).rejects.toThrow("unsupported");
   });
 });
 describe("publisher integration and owner result confirmation", () => {
@@ -647,6 +647,7 @@ describe("login, recovery, and active-job maintenance", () => {
       platform: "tiktok",
       username: "Studio Rasa",
     });
+    browser.env.TIKTOK_SESSION_ENABLED = "true";
     await browser.settings(a.id, {
       enabled: true,
       profile_id: profileId,
@@ -654,9 +655,9 @@ describe("login, recovery, and active-job maintenance", () => {
     });
     const current = await browser.account(a.id);
     expect(current.browser?.expectedUsername).toBe("studio.rasa");
-    await browser.startProbe(a.id);
-    expect(task).toContain('"studio.rasa"');
-    expect(task).not.toContain("Studio Rasa");
+    await expect(browser.startProbe(a.id)).rejects.toThrow("manual_action_required");
+    expect(browser.cloud.createRun).not.toHaveBeenCalled();
+    expect(current.browser?.status).toBe("unverified");
   });
   it("opens a manual login session and keeps its live URL encrypted and owner-side", async () => {
     vi.spyOn(browser.cloud, "createLogin").mockResolvedValue({
